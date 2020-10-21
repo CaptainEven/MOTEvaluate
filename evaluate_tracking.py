@@ -27,7 +27,7 @@ from utils.bbox import bbox_overlap
 from utils.measurements import clear_mot_hungarian, idmeasures
 
 
-def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
+def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     """
     Preprocess the computed trajectory data.
     Matching computed boxes to ground-truth to remove distractors 
@@ -89,7 +89,8 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
         has_duplicates = uniq_frame_id_pairs.shape[0] < frame_id_pairs.shape[0]
         assert not has_duplicates, \
             'Duplicate ID in same frame [Frame ID: {}].'.format(i)
-
+    
+    # filter res data
     keep_idx = np.where(res_keep == 1)[0]
     print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes,'
           'remaining {}/{} computed boxes'.format(
@@ -99,13 +100,15 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     print('Distractor IDs: {}'.format(
         ', '.join(list(map(str, distractor_ids.astype(int))))))
 
+    # filter gt data
     keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids
-                         and gtDB[i, 8] >= min_vis])
+                         and gtDB[i, 8] >= min_vis])  # distracor ids visibility ratio thresholding
 
     # keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 6] != 0])
     print('[GT PREPROCESSING]: Removing distractor boxes, '
           'remaining {}/{} boxes'.format(len(keep_idx), gtDB.shape[0]))
     gtDB = gtDB[keep_idx, :]
+
     return trackDB, gtDB
 
 
@@ -117,10 +120,10 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
     iou_thres: bounding box overlap threshold
     minvis: minimum tolerent visibility
     """
-    trackDB, gtDB = preprocessingDB(
-        trackDB, gtDB, distractor_ids, iou_thres, min_vis)
-    mme, c, fp, g, missed, d, M, allfps = clear_mot_hungarian(
-        trackDB, gtDB, iou_thres)
+    # filter out invalid items from the data
+    trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis)
+
+    mme, c, fp, g, missed, d, M, allfps = clear_mot_hungarian(trackDB, gtDB, iou_thres)
 
     gt_frames = np.unique(gtDB[:, 0])
     gt_ids = np.unique(gtDB[:, 1])
