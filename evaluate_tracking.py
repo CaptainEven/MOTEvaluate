@@ -24,7 +24,7 @@ from easydict import EasyDict as edict
 from utils.io import read_txt_to_struct, read_seqmaps, \
     extract_valid_gt_data, print_metrics
 from utils.bbox import bbox_overlap
-from utils.measurements import clear_mot_hungarian, idmeasures
+from utils.measurements import clear_mot_hungarian, id_measures
 
 
 def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
@@ -188,7 +188,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
         occur = np.where(np.diff(occur) != 1)[0]
         fr[i] = len(occur)
     FRA = sum(fr)
-    idmetrics = idmeasures(gtDB, trackDB, iou_thres)
+    idmetrics = id_measures(gtDB, trackDB, iou_thres)
     metrics = [idmetrics.IDF1, idmetrics.IDP, idmetrics.IDR, recall,
                precision, FAR, n_gt, MT, PT, ML, FP, FN, IDS, FRA,
                MOTA, MOTP, MOTAL]

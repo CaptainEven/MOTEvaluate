@@ -26,7 +26,7 @@ python evaluate_tracking.py
                                [dirname]/[seqname]/res.txt
     --gt     [dirname]         Groundtruth directory:      default path --
                                [dirname]/[seqname]/gt.txt
-(C) Han Shen(thushenhan@gmail.com), 2018-02
+(C) Yiwen Liu(765305261@qq.com), 2020-10
 """
 
 import sys
@@ -55,6 +55,7 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
     n_gt = len(gt_ids)
     n_st = len(st_ids)
 
+    # mis-match error
     mme = np.zeros((f_gt, ), dtype=float)          # ID switch in each frame
 
     # matches found in each frame
@@ -65,11 +66,12 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
     missed = np.zeros((f_gt, ), dtype=float)       # missed gts in each frame
 
     g = np.zeros((f_gt, ), dtype=float)            # gt count in each frame
-    d = np.zeros((f_gt, n_gt), dtype=float)         # overlap matrix
+    d = np.zeros((f_gt, n_gt), dtype=float)        # overlap matrix
     allfps = np.zeros((f_gt, n_st), dtype=float)
 
     gt_inds = [{} for i in range(f_gt)]
     st_inds = [{} for i in range(f_gt)]
+
     # matched pairs hashing gid to sid in each frame
     M = [{} for i in range(f_gt)]
 
@@ -173,11 +175,11 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
             row_gt = gt_inds[t][ct]
             row_st = st_inds[t][est]
             d[t][ct] = bbox_overlap(stDB[row_st, 2:6], gtDB[row_gt, 2:6])
-            
+
     return mme, c, fp, g, missed, d, M, allfps
 
 
-def idmeasures(gtDB, stDB, threshold):
+def id_measures(gtDB, stDB, threshold):
     """
     compute MTMC metrics
     [IDP, IDR, IDF1]
@@ -196,9 +198,9 @@ def idmeasures(gtDB, stDB, threshold):
 
     fp = np.zeros(cost.shape)
     fn = np.zeros(cost.shape)
+
     # cost matrix of all trajectory pairs
-    cost_block, fp_block, fn_block = cost_between_gt_pred(
-        groundtruth, prediction, threshold)
+    cost_block, fp_block, fn_block = cost_between_gt_pred(groundtruth, prediction, threshold)
 
     cost[:n_gt, :n_st] = cost_block
     fp[:n_gt, :n_st] = fp_block
@@ -323,3 +325,7 @@ def cost_between_gt_pred(groundtruth, prediction, threshold):
                 groundtruth[i], prediction[j], threshold)
             cost[i, j] = fp[i, j] + fn[i, j]
     return cost, fp, fn
+
+
+# reference(blog): https://blog.csdn.net/qq_36342854/article/details/102984622
+# reference(paper_2008): <<CLEAR Metrics-MOTA&MOTP>>
