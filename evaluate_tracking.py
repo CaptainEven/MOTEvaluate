@@ -123,7 +123,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
     # filter out invalid items from the data
     trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis)
 
-    mme, c, fp, g, missed, d, M, allfps = clear_mot_hungarian(trackDB, gtDB, iou_thres)
+    # calculate all kinds of metrics
+    mme, c, fp, g, missed, d, M, all_fps = clear_mot_hungarian(trackDB, gtDB, iou_thres)
 
     gt_frames = np.unique(gtDB[:, 0])
     gt_ids = np.unique(gtDB[:, 1])
@@ -187,6 +188,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
         occur = np.where(M_arr[:, i] > 0)[0]
         occur = np.where(np.diff(occur) != 1)[0]
         fr[i] = len(occur)
+
     FRA = sum(fr)
     idmetrics = id_measures(gtDB, trackDB, iou_thres)
     metrics = [idmetrics.IDF1, idmetrics.IDP, idmetrics.IDR, recall,

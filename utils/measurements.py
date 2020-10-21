@@ -38,42 +38,43 @@ from easydict import EasyDict as edict
 VERBOSE = False
 
 
-def clear_mot_hungarian(stDB, gtDB, threshold):
+def clear_mot_hungarian(resDB, gtDB, threshold):
     """
     compute CLEAR_MOT and other metrics
-    [recall, precision, FAR, GT, MT, PT, ML, falsepositives, false negatives,
-     idswitches, FRA, MOTA, MOTP, MOTAL]
+    [recall, precision, FAR, GT, MT, PT, ML, false positives, false negatives,
+     id switches, FRA, MOTA, MOTP, MOTAL]
     """
-    st_frames = np.unique(stDB[:, 0])
+    res_frames = np.unique(resDB[:, 0])
     gt_frames = np.unique(gtDB[:, 0])
-    st_ids = np.unique(stDB[:, 1])
+    res_ids = np.unique(resDB[:, 1])
     gt_ids = np.unique(gtDB[:, 1])
-    # f_gt = int(max(max(st_frames), max(gt_frames)))
-    # n_gt = int(max(gt_ids))
-    # n_st = int(max(st_ids))
-    f_gt = len(gt_frames)
-    n_gt = len(gt_ids)
-    n_st = len(st_ids)
+
+    # n_frames_gt = int(max(max(res_frames), max(gt_frames)))
+    # n_ids_gt = int(max(gt_ids))
+    # n_ids_res = int(max(res_ids))
+    n_frames_gt = len(gt_frames)
+    n_ids_gt = len(gt_ids)
+    n_ids_res = len(res_ids)
 
     # mis-match error
-    mme = np.zeros((f_gt, ), dtype=float)          # ID switch in each frame
+    mme = np.zeros((n_frames_gt, ), dtype=float)          # ID switch in each frame
 
     # matches found in each frame
-    c = np.zeros((f_gt, ), dtype=float)
+    c = np.zeros((n_frames_gt, ), dtype=float)
 
     # false positives in each frame
-    fp = np.zeros((f_gt, ), dtype=float)
-    missed = np.zeros((f_gt, ), dtype=float)       # missed gts in each frame
+    fp = np.zeros((n_frames_gt, ), dtype=float)
+    missed = np.zeros((n_frames_gt, ), dtype=float)       # missed gts in each frame
 
-    g = np.zeros((f_gt, ), dtype=float)            # gt count in each frame
-    d = np.zeros((f_gt, n_gt), dtype=float)        # overlap matrix
-    allfps = np.zeros((f_gt, n_st), dtype=float)
+    g = np.zeros((n_frames_gt, ), dtype=float)            # gt count in each frame
+    d = np.zeros((n_frames_gt, n_ids_gt), dtype=float)        # overlap matrix
+    allfps = np.zeros((n_frames_gt, n_ids_res), dtype=float)
 
-    gt_inds = [{} for i in range(f_gt)]
-    st_inds = [{} for i in range(f_gt)]
+    gt_inds = [{} for i in range(n_frames_gt)]
+    st_inds = [{} for i in range(n_frames_gt)]
 
     # matched pairs hashing gid to sid in each frame
-    M = [{} for i in range(f_gt)]
+    M = [{} for i in range(n_frames_gt)]
 
     # hash the indices to speed up indexing
     for i in range(gtDB.shape[0]):
@@ -82,14 +83,14 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
         gt_inds[frame][gid] = i
 
     gt_frames_list = list(gt_frames)
-    for i in range(stDB.shape[0]):
+    for i in range(resDB.shape[0]):
         # sometimes detection missed in certain frames, thus should be
         #  assigned to groundtruth frame id for alignment
-        frame = gt_frames_list.index(stDB[i, 0])
-        sid = np.where(st_ids == stDB[i, 1])[0][0]
+        frame = gt_frames_list.index(resDB[i, 0])
+        sid = np.where(res_ids == resDB[i, 1])[0][0]
         st_inds[frame][sid] = i
 
-    for t in range(f_gt):
+    for t in range(n_frames_gt):
         g[t] = len(list(gt_inds[t].keys()))
 
         # preserving original mapping if box of this trajectory has large
@@ -103,7 +104,7 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
                     row_gt = gt_inds[t][mappings[k]]
                     row_st = st_inds[t][M[t - 1][mappings[k]]]
                     dist = bbox_overlap(
-                        stDB[row_st, 2:6], gtDB[row_gt, 2:6])
+                        resDB[row_st, 2:6], gtDB[row_gt, 2:6])
                     if dist >= threshold:
                         M[t][mappings[k]] = M[t - 1][mappings[k]]
                         if VERBOSE:
@@ -117,12 +118,12 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
         unmapped_st = [key for key in st_inds[t].keys(
         ) if key not in list(M[t].values())]
         if len(unmapped_gt) > 0 and len(unmapped_st) > 0:
-            overlaps = np.zeros((n_gt, n_st), dtype=float)
+            overlaps = np.zeros((n_ids_gt, n_ids_res), dtype=float)
             for i in range(len(unmapped_gt)):
                 row_gt = gt_inds[t][unmapped_gt[i]]
                 for j in range(len(unmapped_st)):
                     row_st = st_inds[t][unmapped_st[j]]
-                    dist = bbox_overlap(stDB[row_st, 2:6], gtDB[row_gt, 2:6])
+                    dist = bbox_overlap(resDB[row_st, 2:6], gtDB[row_gt, 2:6])
                     if dist[0] >= threshold:
                         overlaps[i][j] = dist[0]
             matched_indices = linear_assignment(1 - overlaps)
@@ -174,7 +175,7 @@ def clear_mot_hungarian(stDB, gtDB, threshold):
             est = M[t][ct]
             row_gt = gt_inds[t][ct]
             row_st = st_inds[t][est]
-            d[t][ct] = bbox_overlap(stDB[row_st, 2:6], gtDB[row_gt, 2:6])
+            d[t][ct] = bbox_overlap(resDB[row_st, 2:6], gtDB[row_gt, 2:6])
 
     return mme, c, fp, g, missed, d, M, allfps
 
