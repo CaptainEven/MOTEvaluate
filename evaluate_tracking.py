@@ -61,7 +61,8 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
         gt_num = gt_in_frame.shape[0]
         overlaps = np.zeros((res_num, gt_num), dtype=float)  # iou matrix
         for gt_id in range(gt_num):  # row: res, col: gt
-            overlaps[:, gt_id] = bbox_overlap(res_in_frame_data[:, 2:6], gt_in_frame_data[gt_id, 2:6])
+            overlaps[:, gt_id] = bbox_overlap(
+                res_in_frame_data[:, 2:6], gt_in_frame_data[gt_id, 2:6])
 
         # build cost matrix
         cost_matrix = 1.0 - overlaps
@@ -93,12 +94,13 @@ def preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes,'
           'remaining {}/{} computed boxes'.format(
               len(keep_idx), len(res_keep)))
+
     trackDB = trackDB[keep_idx, :]
-    print('Distractors: {}'.format(
+    print('Distractor IDs: {}'.format(
         ', '.join(list(map(str, distractor_ids.astype(int))))))
-    keep_idx = np.array([i for i in range(
-        gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids and
-        gtDB[i, 8] >= min_vis])
+
+    keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids
+                         and gtDB[i, 8] >= min_vis])
 
     # keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 6] != 0])
     print('[GT PREPROCESSING]: Removing distractor boxes, '
@@ -115,8 +117,10 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
     iou_thres: bounding box overlap threshold
     minvis: minimum tolerent visibility
     """
-    trackDB, gtDB = preprocessingDB(trackDB, gtDB, distractor_ids, iou_thres, min_vis)
-    mme, c, fp, g, missed, d, M, allfps = clear_mot_hungarian(trackDB, gtDB, iou_thres)
+    trackDB, gtDB = preprocessingDB(
+        trackDB, gtDB, distractor_ids, iou_thres, min_vis)
+    mme, c, fp, g, missed, d, M, allfps = clear_mot_hungarian(
+        trackDB, gtDB, iou_thres)
 
     gt_frames = np.unique(gtDB[:, 0])
     gt_ids = np.unique(gtDB[:, 1])
@@ -279,7 +283,7 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
         # ---------- main function to do evaluation
         metrics, extra_info = evaluate_sequence(trackDB, gtDB, distractor_ids)
         # ----------
-        
+
         print_metrics(seq_name + ' Evaluation', metrics)
         all_info.append(extra_info)
 
