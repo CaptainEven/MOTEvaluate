@@ -185,7 +185,7 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
 
         # check miss match errors
         if fr_i > 0:  # start from the second frame
-            for i in range(len(gt_tracked_ids)):
+            for i in range(len(gt_tracked_ids)):  # tracked is matched in last frame
                 ct = gt_tracked_ids[i]
                 est = MatchedDicts[fr_i][ct]
                 last_non_empty = -1
@@ -196,17 +196,19 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
                         last_non_empty = fr_j
                         break
                 
-                # if found last gt tracked id in previous frames(time t-1 or earlier)
+                # if the tracked gt id exists in the previous frames(time t-1) 
+                # and also tracked in any previous frames <= t-1
                 if ct in gt_idx_dicts[fr_i - 1].keys() and last_non_empty != -1:
-                    mtct, mlastnonemptyct = -1, -1
+                    mtct, mt_last_nonempty_ct = -1, -1
 
-                    if ct in MatchedDicts[fr_i].keys():  # time t
-                        mtct = MatchedDicts[fr_i][ct]
-                    if ct in MatchedDicts[last_non_empty]:
-                        mlastnonemptyct = MatchedDicts[last_non_empty][ct]
+                    if ct in MatchedDicts[fr_i].keys():  # if gt id exists in current frame: time t
+                        mtct = MatchedDicts[fr_i][ct]  # res matched id in time t
+                    if ct in MatchedDicts[last_non_empty]:  # if gt id also exists in previous frames: time <= t-1 
+                        mt_last_nonempty_ct = MatchedDicts[last_non_empty][ct]
 
-                    if mtct != mlastnonemptyct:
-                        mme[fr_i] += 1
+                    # for the same gt id, the two matched res id are not the same
+                    if mtct != mt_last_nonempty_ct:  
+                        mme[fr_i] += 1  # mismatched 
 
         c[fr_i] = len(gt_tracked_ids)
         fp[fr_i] = len(list(res_idx_dicts[fr_i].keys()))
