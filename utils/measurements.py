@@ -38,7 +38,7 @@ from easydict import EasyDict as edict
 VERBOSE = False
 
 
-def clear_mot_hungarian(resDB, gtDB, iou_thresh):
+def clear_mot_metrics(resDB, gtDB, iou_thresh):
     """
     compute CLEAR_MOT and other metrics
     [recall, precision, FAR, GT, MT, PT, ML, false positives, false negatives,
@@ -187,7 +187,7 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
         if fr_i > 0:  # start from the second frame
             for i in range(len(gt_tracked_ids)):  # tracked is matched in last frame
                 gt_tracked_id = gt_tracked_ids[i]
-                est = MatchedDicts[fr_i][gt_tracked_id]
+                res_tracked_id = MatchedDicts[fr_i][gt_tracked_id]
                 last_non_empty_fr = -1
 
                 # check in previous frames for the last non-empty gt tracked id
@@ -225,10 +225,10 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
 
         for i in range(len(gt_tracked_ids)):
             gt_tracked_id = gt_tracked_ids[i]
-            est = MatchedDicts[fr_i][gt_tracked_id]
+            res_tracked_id = MatchedDicts[fr_i][gt_tracked_id]
 
             row_gt = gt_idx_dicts[fr_i][gt_tracked_id]
-            row_res = res_idx_dicts[fr_i][est]
+            row_res = res_idx_dicts[fr_i][res_tracked_id]
             
             d[fr_i][gt_tracked_id] = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
 
