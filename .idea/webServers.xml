@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="7030fb08-2b8b-4f3c-8e15-171651c0c5f4" name="MOTEvaluate">
+        <fileTransfer accessType="SFTP" host="192.168.1.211" port="22" sshConfigId="62e38662-f5b2-4b2f-91fb-5d0ce969a231" sshConfig="jaya@192.168.1.211:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
