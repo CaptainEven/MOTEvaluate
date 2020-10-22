@@ -61,8 +61,7 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
         gt_num = gt_in_frame.shape[0]
         overlaps = np.zeros((res_num, gt_num), dtype=float)  # iou matrix
         for gt_id in range(gt_num):  # row: res, col: gt
-            overlaps[:, gt_id] = bbox_overlap(
-                res_in_frame_data[:, 2:6], gt_in_frame_data[gt_id, 2:6])
+            overlaps[:, gt_id] = bbox_overlap(res_in_frame_data[:, 2:6], gt_in_frame_data[gt_id, 2:6])
 
         # build cost matrix
         cost_matrix = 1.0 - overlaps
@@ -231,10 +230,12 @@ def evaluate_bm(all_metrics):
     for i in range(len(all_metrics)):
         nbox_gt += all_metrics[i].idmetrics.nbox_gt
         nbox_st += all_metrics[i].idmetrics.nbox_st
+
         # Total ID Measures
         IDTP += all_metrics[i].idmetrics.IDTP
         IDFP += all_metrics[i].idmetrics.IDFP
         IDFN += all_metrics[i].idmetrics.IDFN
+
         # Total ID Measures
         MT += all_metrics[i].MT
         ML += all_metrics[i].ML
@@ -249,20 +250,27 @@ def evaluate_bm(all_metrics):
         missed += all_metrics[i].missed
         ids += all_metrics[i].mme
         overlap_sum += sum(sum(all_metrics[i].d))
+
     # IDP = IDTP / (IDTP + IDFP)
     IDP = IDTP / (IDTP + IDFP) * 100
+
     # IDR = IDTP / (IDTP + IDFN)
     IDR = IDTP / (IDTP + IDFN) * 100
+
     # IDF1 = 2 * IDTP / (2 * IDTP + IDFP + IDFN)
     IDF1 = 2 * IDTP / (nbox_gt + nbox_st) * 100
     FAR = fp / f_gt
     MOTP = (overlap_sum / c) * 100
+
     # MOTAL = 1 - (# fp + # fn + #log10(ids)) / # gts
     MOTAL = (1 - (fp + missed + np.log10(ids + 1)) / g) * 100
+    
     # MOTA = 1 - (# fp + # fn + # ids) / # gts
     MOTA = (1 - (fp + missed + ids) / g) * 100
+
     # recall = TP / (TP + FN) = # corrected boxes / # gt boxes
     recall = c / g * 100
+
     # precision = TP / (TP + FP) = # corrected boxes / # det boxes
     precision = c / (fp + c) * 100
     metrics = [IDF1, IDP, IDR, recall, precision, FAR, n_gt,

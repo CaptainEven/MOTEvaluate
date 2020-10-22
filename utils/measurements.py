@@ -38,7 +38,7 @@ from easydict import EasyDict as edict
 VERBOSE = False
 
 
-def clear_mot_hungarian(resDB, gtDB, threshold):
+def clear_mot_hungarian(resDB, gtDB, iou_thresh):
     """
     compute CLEAR_MOT and other metrics
     [recall, precision, FAR, GT, MT, PT, ML, false positives, false negatives,
@@ -46,10 +46,14 @@ def clear_mot_hungarian(resDB, gtDB, threshold):
     @res: results
     @gt: fround truth
     """
+    # result and gt frame inds(start from 1)
     res_frames = np.unique(resDB[:, 0])
-    gt_frames = np.unique(gtDB[:, 0])  # gt frame inds(start from 1)
-    res_ids = np.unique(resDB[:, 1])   # result frame inds(start from 1)
-    gt_ids = np.unique(gtDB[:, 1])
+    gt_frames = np.unique(gtDB[:, 0])  
+
+    # result and gt unique IDs
+    # either start from 0 or 1 
+    res_ids = np.unique(resDB[:, 1])   # result IDs start from 0
+    gt_ids = np.unique(gtDB[:, 1])     # gt id start from 1
 
     # n_frames_gt = int(max(max(res_frames), max(gt_frames)))
     # n_ids_gt = int(max(gt_ids))
@@ -71,7 +75,7 @@ def clear_mot_hungarian(resDB, gtDB, threshold):
     missed = np.zeros((n_frames_gt, ), dtype=float)       
 
     # gt count in each frame
-    g = np.zeros((n_frames_gt, ), dtype=float)
+    gt_count = np.zeros((n_frames_gt, ), dtype=float)
 
     # overlap matrix(iou matrix)
     d = np.zeros((n_frames_gt, n_ids_gt), dtype=float)   
@@ -79,114 +83,137 @@ def clear_mot_hungarian(resDB, gtDB, threshold):
     # all false positives in all gt frames   
     all_fps = np.zeros((n_frames_gt, n_ids_res), dtype=float)  # account for the number of 1s?
 
-    gt_inds = [{} for i in range(n_frames_gt)]   # gt frame inds
-    res_inds = [{} for i in range(n_frames_gt)]  # res frame inds
+    gt_idx_dicts = [{} for i in range(n_frames_gt)]   # gt frame inds
+    res_idx_dicts = [{} for i in range(n_frames_gt)]  # res frame inds
 
     # matched pairs hashing gt_id to res_id in each frame
-    M = [{} for i in range(n_frames_gt)]
+    MatchedDicts = [{} for i in range(n_frames_gt)]
 
     # hash the indices to speed up indexing
     for i in range(gtDB.shape[0]):  # traverse each item(gt bbox)
-        frame = np.where(gt_frames == gtDB[i, 0])[0][0]
-        gt_id = np.where(gt_ids == gtDB[i, 1])[0][0]
-        gt_inds[frame][gt_id] = i  # i: item idx
+        frame = np.where(gt_frames == gtDB[i, 0])[0][0]  # original gt track ids(may start from 1)
+        gt_id = np.where(gt_ids == gtDB[i, 1])[0][0]  # key: gt_id start from 0
+        gt_idx_dicts[frame][gt_id] = i  # i: gt data's item idx
 
     gt_frames_list = list(gt_frames)
     for i in range(resDB.shape[0]):
         # sometimes detection missed in certain frames, thus should be
-        #  assigned to groundtruth frame id for alignment
-        frame = gt_frames_list.index(resDB[i, 0])
-        res_id = np.where(res_ids == resDB[i, 1])[0][0]
-        res_inds[frame][res_id] = i
+        # assigned to ground truth frame id for alignment
+        frame = gt_frames_list.index(resDB[i, 0])  # original res track ids(start from 0)
+        res_id = np.where(res_ids == resDB[i, 1])[0][0]  # key: res_id start from 0 
+        res_idx_dicts[frame][res_id] = i  # i: result data's item idx
 
-    for t in range(n_frames_gt):
-        g[t] = len(list(gt_inds[t].keys()))
+    # statistics for each frame(start from the second frame)
+    for fr_i in range(n_frames_gt):
+        gt_count[fr_i] = len(list(gt_idx_dicts[fr_i].keys()))
 
         # preserving original mapping if box of this trajectory has large
         #  enough iou in avoid of ID switch
-        if t > 0:
-            mappings = list(M[t - 1].keys())
-            sorted(mappings)
-            for k in range(len(mappings)):
-                if mappings[k] in list(gt_inds[t].keys()) and \
-                        M[t - 1][mappings[k]] in list(res_inds[t].keys()):
-                    row_gt = gt_inds[t][mappings[k]]
-                    row_st = res_inds[t][M[t - 1][mappings[k]]]
-                    dist = bbox_overlap(
-                        resDB[row_st, 2:6], gtDB[row_gt, 2:6])
-                    if dist >= threshold:
-                        M[t][mappings[k]] = M[t - 1][mappings[k]]
+        if fr_i > 0:  # t—(t-1) matching start from the second frame(fr_i = 1)
+            mapping_keys = list(MatchedDicts[fr_i - 1].keys())
+            mapping_keys.sort()
+
+            for k in range(len(mapping_keys)):
+                gt_track_id = mapping_keys[k]  # key: start from 0
+                res_track_id = MatchedDicts[fr_i - 1][gt_track_id]  # val: start from 0
+
+                if gt_track_id in list(gt_idx_dicts[fr_i].keys()) and \
+                        res_track_id in list(res_idx_dicts[fr_i].keys()):
+
+                    row_gt = gt_idx_dicts[fr_i][gt_track_id]
+                    row_res = res_idx_dicts[fr_i][res_track_id]
+
+                    dist = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
+                    if dist >= iou_thresh:
+                        
+                        # ----- fill value for Matched matrix
+                        MatchedDicts[fr_i][mapping_keys[k]] = res_track_id
+                        # -----
+
                         if VERBOSE:
                             print('perserving mapping: %d to %d' %
-                                  (mappings[k], M[t][mappings[k]]))
+                                  (mapping_keys[k], MatchedDicts[fr_i][mapping_keys[k]]))
 
         # mapping remaining groundtruth and estimated boxes
-        unmapped_gt, unmapped_st = [], []
-        unmapped_gt = [key for key in gt_inds[t].keys()
-                       if key not in list(M[t].keys())]
-        unmapped_st = [key for key in res_inds[t].keys(
-        ) if key not in list(M[t].values())]
-        if len(unmapped_gt) > 0 and len(unmapped_st) > 0:
+        unmapped_gt, unmapped_res = [], []
+        unmapped_gt = [key for key in gt_idx_dicts[fr_i].keys() if key not in list(MatchedDicts[fr_i].keys())]
+        unmapped_res = [key for key in res_idx_dicts[fr_i].keys() if key not in list(MatchedDicts[fr_i].values())]
+
+        if len(unmapped_gt) > 0 and len(unmapped_res) > 0:
+            # iou matrix: row: gt, col: res
             overlaps = np.zeros((n_ids_gt, n_ids_res), dtype=float)
-            for i in range(len(unmapped_gt)):
-                row_gt = gt_inds[t][unmapped_gt[i]]
-                for j in range(len(unmapped_st)):
-                    row_st = res_inds[t][unmapped_st[j]]
-                    dist = bbox_overlap(resDB[row_st, 2:6], gtDB[row_gt, 2:6])
-                    if dist[0] >= threshold:
+
+            for i in range(len(unmapped_gt)):  # gt 
+                row_gt = gt_idx_dicts[fr_i][unmapped_gt[i]]  # row idx(item idx in gt data)
+
+                for j in range(len(unmapped_res)):
+                    row_res = res_idx_dicts[fr_i][unmapped_res[j]]  # row idx(item idx in res data)
+
+                    dist = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
+                    if dist[0] >= iou_thresh:
                         overlaps[i][j] = dist[0]
-            matched_indices = linear_assignment(1 - overlaps)
+            
+            # hungarian matching: return row_ind(gt), col_ind(res)
+            cost_matrix = 1.0 - overlaps
+            matched_indices = linear_assignment(cost_matrix)
 
             for matched in zip(*matched_indices):
                 if overlaps[matched[0], matched[1]] == 0:
                     continue
-                M[t][unmapped_gt[matched[0]]] = unmapped_st[matched[1]]
+                
+                # ----- fill value for Matched matrix,
+                #  key: gt track id(start from 0), val: res track id(start from 0)
+                MatchedDicts[fr_i][unmapped_gt[matched[0]]] = unmapped_res[matched[1]]
+                # -----
+
                 if VERBOSE:
-                    print(
-                        'adding mapping: %d to %d' % (
-                            unmapped_gt[matched[0]],
-                            M[t][unmapped_gt[matched[0]]]))
+                    print('adding mapping: %d to %d' \
+                        % (unmapped_gt[matched[0]], MatchedDicts[fr_i][unmapped_gt[matched[0]]]))
 
         # compute statistics
-        cur_tracked = list(M[t].keys())
-        st_tracked = list(M[t].values())
-        fps = [key for key in res_inds[t].keys()
-               if key not in list(M[t].values())]
+        cur_tracked = list(MatchedDicts[fr_i].keys())
+        st_tracked = list(MatchedDicts[fr_i].values())
+        fps = [key for key in res_idx_dicts[fr_i].keys()
+               if key not in list(MatchedDicts[fr_i].values())]
+
         for k in range(len(fps)):
-            all_fps[t][fps[k]] = fps[k]
+            all_fps[fr_i][fps[k]] = fps[k]
 
         # check miss match errors
-        if t > 0:
+        if fr_i > 0:
             for i in range(len(cur_tracked)):
                 ct = cur_tracked[i]
-                est = M[t][ct]
+                est = MatchedDicts[fr_i][ct]
                 last_non_empty = -1
-                for j in range(t - 1, 0, -1):
-                    if ct in M[j].keys():
+
+                for j in range(fr_i - 1, 0, -1):
+                    if ct in MatchedDicts[j].keys():
                         last_non_empty = j
                         break
-                if ct in gt_inds[t - 1].keys() and last_non_empty != -1:
+
+                if ct in gt_idx_dicts[fr_i - 1].keys() and last_non_empty != -1:
                     mtct, mlastnonemptyct = -1, -1
-                    if ct in M[t]:
-                        mtct = M[t][ct]
-                    if ct in M[last_non_empty]:
-                        mlastnonemptyct = M[last_non_empty][ct]
+                    if ct in MatchedDicts[fr_i]:
+                        mtct = MatchedDicts[fr_i][ct]
+                    if ct in MatchedDicts[last_non_empty]:
+                        mlastnonemptyct = MatchedDicts[last_non_empty][ct]
 
                     if mtct != mlastnonemptyct:
-                        mme[t] += 1
+                        mme[fr_i] += 1
 
-        c[t] = len(cur_tracked)
-        fp[t] = len(list(res_inds[t].keys()))
-        fp[t] -= c[t]
-        missed[t] = g[t] - c[t]
+        c[fr_i] = len(cur_tracked)
+        fp[fr_i] = len(list(res_idx_dicts[fr_i].keys()))
+        fp[fr_i] -= c[fr_i]
+        missed[fr_i] = gt_count[fr_i] - c[fr_i]
+
         for i in range(len(cur_tracked)):
             ct = cur_tracked[i]
-            est = M[t][ct]
-            row_gt = gt_inds[t][ct]
-            row_st = res_inds[t][est]
-            d[t][ct] = bbox_overlap(resDB[row_st, 2:6], gtDB[row_gt, 2:6])
+            est = MatchedDicts[fr_i][ct]
+            row_gt = gt_idx_dicts[fr_i][ct]
+            row_res = res_idx_dicts[fr_i][est]
+            d[fr_i][ct] = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
 
-    return mme, c, fp, g, missed, d, M, all_fps
+    return mme, c, fp, gt_count, missed, d, MatchedDicts, all_fps
 
 
 def id_measures(gtDB, stDB, threshold):
