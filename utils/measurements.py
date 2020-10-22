@@ -80,8 +80,8 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
     # overlap matrix(iou matrix)
     d = np.zeros((n_frames_gt, n_ids_gt), dtype=float)   
 
-    # all false positives in all gt frames   
-    all_fps = np.zeros((n_frames_gt, n_ids_res), dtype=float)  # account for the number of 1s?
+    # false positives for all gt frames   
+    all_fps = np.zeros((n_frames_gt, n_ids_res), dtype=float)  # account for the number of non-zeros
 
     gt_idx_dicts = [{} for i in range(n_frames_gt)]   # gt frame inds
     res_idx_dicts = [{} for i in range(n_frames_gt)]  # res frame inds
@@ -146,12 +146,12 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
             for i in range(len(unmapped_gt)):  # gt 
                 row_gt = gt_idx_dicts[fr_i][unmapped_gt[i]]  # row idx(item idx in gt data)
 
-                for j in range(len(unmapped_res)):
-                    row_res = res_idx_dicts[fr_i][unmapped_res[j]]  # row idx(item idx in res data)
+                for fr_j in range(len(unmapped_res)):
+                    row_res = res_idx_dicts[fr_i][unmapped_res[fr_j]]  # row idx(item idx in res data)
 
                     dist = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
                     if dist[0] >= iou_thresh:
-                        overlaps[i][j] = dist[0]
+                        overlaps[i][fr_j] = dist[0]
             
             # hungarian matching: return row_ind(gt), col_ind(res)
             cost_matrix = 1.0 - overlaps
@@ -171,29 +171,36 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
                         % (unmapped_gt[matched[0]], MatchedDicts[fr_i][unmapped_gt[matched[0]]]))
 
         # compute statistics
-        cur_tracked = list(MatchedDicts[fr_i].keys())
-        st_tracked = list(MatchedDicts[fr_i].values())
-        fps = [key for key in res_idx_dicts[fr_i].keys()
-               if key not in list(MatchedDicts[fr_i].values())]
+        gt_tracked_ids = list(MatchedDicts[fr_i].keys())    # gt track ids(start from 0)
+        res_tracked_ids = list(MatchedDicts[fr_i].values())  # res track ids(start from 0)
 
-        for k in range(len(fps)):
-            all_fps[fr_i][fps[k]] = fps[k]
+        # false positive of frame fr_i
+        fps = [key for key in res_idx_dicts[fr_i].keys() if key not in res_tracked_ids]  
+
+        # for k in range(len(fps)):
+        #     all_fps[fr_i][fps[k]] = fps[k]
+
+        for fp_idx in fps:
+            all_fps[fr_i][fp_idx] = fp_idx
 
         # check miss match errors
-        if fr_i > 0:
-            for i in range(len(cur_tracked)):
-                ct = cur_tracked[i]
+        if fr_i > 0:  # start from the second frame
+            for i in range(len(gt_tracked_ids)):
+                ct = gt_tracked_ids[i]
                 est = MatchedDicts[fr_i][ct]
                 last_non_empty = -1
 
-                for j in range(fr_i - 1, 0, -1):
-                    if ct in MatchedDicts[j].keys():
-                        last_non_empty = j
+                # check in previous frames for the last non-empty gt tracked id
+                for fr_j in range(fr_i - 1, 0, -1):  # start from time t-1
+                    if ct in MatchedDicts[fr_j].keys():
+                        last_non_empty = fr_j
                         break
-
+                
+                # if found last gt tracked id in previous frames(time t-1 or earlier)
                 if ct in gt_idx_dicts[fr_i - 1].keys() and last_non_empty != -1:
                     mtct, mlastnonemptyct = -1, -1
-                    if ct in MatchedDicts[fr_i]:
+
+                    if ct in MatchedDicts[fr_i].keys():  # time t
                         mtct = MatchedDicts[fr_i][ct]
                     if ct in MatchedDicts[last_non_empty]:
                         mlastnonemptyct = MatchedDicts[last_non_empty][ct]
@@ -201,13 +208,13 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
                     if mtct != mlastnonemptyct:
                         mme[fr_i] += 1
 
-        c[fr_i] = len(cur_tracked)
+        c[fr_i] = len(gt_tracked_ids)
         fp[fr_i] = len(list(res_idx_dicts[fr_i].keys()))
         fp[fr_i] -= c[fr_i]
         missed[fr_i] = gt_count[fr_i] - c[fr_i]
 
-        for i in range(len(cur_tracked)):
-            ct = cur_tracked[i]
+        for i in range(len(gt_tracked_ids)):
+            ct = gt_tracked_ids[i]
             est = MatchedDicts[fr_i][ct]
             row_gt = gt_idx_dicts[fr_i][ct]
             row_res = res_idx_dicts[fr_i][est]
