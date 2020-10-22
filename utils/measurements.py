@@ -75,7 +75,7 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
     missed = np.zeros((n_frames_gt, ), dtype=float)       
 
     # gt count in each frame
-    gt_count = np.zeros((n_frames_gt, ), dtype=float)
+    gt_counts = np.zeros((n_frames_gt, ), dtype=float)
 
     # overlap matrix(iou matrix)
     d = np.zeros((n_frames_gt, n_ids_gt), dtype=float)   
@@ -105,7 +105,7 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
 
     # statistics for each frame(start from the second frame)
     for fr_i in range(n_frames_gt):
-        gt_count[fr_i] = len(list(gt_idx_dicts[fr_i].keys()))
+        gt_counts[fr_i] = len(list(gt_idx_dicts[fr_i].keys()))
 
         # preserving original mapping if box of this trajectory has large
         #  enough iou in avoid of ID switch
@@ -186,43 +186,53 @@ def clear_mot_hungarian(resDB, gtDB, iou_thresh):
         # check miss match errors
         if fr_i > 0:  # start from the second frame
             for i in range(len(gt_tracked_ids)):  # tracked is matched in last frame
-                ct = gt_tracked_ids[i]
-                est = MatchedDicts[fr_i][ct]
-                last_non_empty = -1
+                gt_tracked_id = gt_tracked_ids[i]
+                est = MatchedDicts[fr_i][gt_tracked_id]
+                last_non_empty_fr = -1
 
                 # check in previous frames for the last non-empty gt tracked id
                 for fr_j in range(fr_i - 1, 0, -1):  # start from time t-1
-                    if ct in MatchedDicts[fr_j].keys():
-                        last_non_empty = fr_j
+                    if gt_tracked_id in MatchedDicts[fr_j].keys():
+                        last_non_empty_fr = fr_j
                         break
                 
                 # if the tracked gt id exists in the previous frames(time t-1) 
                 # and also tracked in any previous frames <= t-1
-                if ct in gt_idx_dicts[fr_i - 1].keys() and last_non_empty != -1:
-                    mtct, mt_last_nonempty_ct = -1, -1
+                if gt_tracked_id in gt_idx_dicts[fr_i - 1].keys() and last_non_empty_fr != -1:
+                    res_mt_id, res_mt_id_last_nonempty = -1, -1
 
-                    if ct in MatchedDicts[fr_i].keys():  # if gt id exists in current frame: time t
-                        mtct = MatchedDicts[fr_i][ct]  # res matched id in time t
-                    if ct in MatchedDicts[last_non_empty]:  # if gt id also exists in previous frames: time <= t-1 
-                        mt_last_nonempty_ct = MatchedDicts[last_non_empty][ct]
+                    # if gt id exists in current frame: time t
+                    if gt_tracked_id in MatchedDicts[fr_i].keys():
+                        res_mt_id = MatchedDicts[fr_i][gt_tracked_id]  # res matched id in time t
 
-                    # for the same gt id, the two matched res id are not the same
-                    if mtct != mt_last_nonempty_ct:  
+                    # if gt id also exists in previous frames: time <= t-1
+                    if gt_tracked_id in MatchedDicts[last_non_empty_fr]:
+                        res_mt_id_last_nonempty = MatchedDicts[last_non_empty_fr][gt_tracked_id]
+
+                    # for the same gt id, but the two matched res id are not the same
+                    if res_mt_id != res_mt_id_last_nonempty:
                         mme[fr_i] += 1  # mismatched 
 
-        c[fr_i] = len(gt_tracked_ids)
+        # matched in the current frame: time t
+        c[fr_i] = len(gt_tracked_ids)  
+        
+        # false positive in the current frame: 
         fp[fr_i] = len(list(res_idx_dicts[fr_i].keys()))
         fp[fr_i] -= c[fr_i]
-        missed[fr_i] = gt_count[fr_i] - c[fr_i]
+
+        # false negative in the current frame: missed gt ids count
+        missed[fr_i] = gt_counts[fr_i] - c[fr_i]
 
         for i in range(len(gt_tracked_ids)):
-            ct = gt_tracked_ids[i]
-            est = MatchedDicts[fr_i][ct]
-            row_gt = gt_idx_dicts[fr_i][ct]
-            row_res = res_idx_dicts[fr_i][est]
-            d[fr_i][ct] = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
+            gt_tracked_id = gt_tracked_ids[i]
+            est = MatchedDicts[fr_i][gt_tracked_id]
 
-    return mme, c, fp, gt_count, missed, d, MatchedDicts, all_fps
+            row_gt = gt_idx_dicts[fr_i][gt_tracked_id]
+            row_res = res_idx_dicts[fr_i][est]
+            
+            d[fr_i][gt_tracked_id] = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
+
+    return mme, c, fp, gt_counts, missed, d, MatchedDicts, all_fps
 
 
 def id_measures(gtDB, stDB, threshold):

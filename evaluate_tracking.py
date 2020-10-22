@@ -40,7 +40,7 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     because the occluded people are supposed to be interpolated for tracking.
     """
 
-    # Get frmaes number for the seq: make sure track_frames is the same as gt frames
+    # Get frames number for the seq: make sure track_frames is the same as gt frames
     track_frames = np.unique(trackDB[:, 0])
     gt_frames = np.unique(gtDB[:, 0])
     n_frames = min(len(track_frames), len(gt_frames))
