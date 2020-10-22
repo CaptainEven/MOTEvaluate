@@ -133,8 +133,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
     n_gt = len(gt_ids)
     n_st = len(st_ids)
 
-    FN = sum(missed)
-    FP = sum(fp)
+    FN = sum(missed)  # false negative
+    FP = sum(fp)      # false positive
     IDS = sum(mme)
 
     # MOTP = sum(iou) / # corrected boxes
