@@ -111,39 +111,48 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     return trackDB, gtDB
 
 
-def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
+def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     """
     Evaluate single sequence
     trackDB: tracking result data structure
     gtDB: ground-truth data structure
     iou_thres: bounding box overlap threshold
-    minvis: minimum tolerent visibility
+    min_vis: minimum tolerent visibility
     """
     # filter out invalid items from the data
-    trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis)
+    trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
 
     # calculate all kinds of metrics
-    mme, c, fp, g, missed, d, M, all_fps = clear_mot_metrics(trackDB, gtDB, iou_thres)
+    # mme: mis-match error
+    # c: true positive
+    # fp: false positive
+    # g: ground truth
+    # missed: false negative
+    # d: distance(or iou), key: gt_tracked_id
+    # M: matched dict, key: gt_track_id, col: res_track_id
+    # all_fps: all frames' false positive
+    mme, c, fp, g, missed, d, M, all_fps = clear_mot_metrics(trackDB, gtDB, iou_thresh)
 
     gt_frames = np.unique(gtDB[:, 0])
+
     gt_ids = np.unique(gtDB[:, 1])
-    st_ids = np.unique(trackDB[:, 1])
+    res_ids = np.unique(trackDB[:, 1])
+
     f_gt = len(gt_frames)
     n_gt = len(gt_ids)
-    n_st = len(st_ids)
+    n_st = len(res_ids)
 
     FN = sum(missed)  # false negative
     FP = sum(fp)      # false positive
     IDS = sum(mme)
 
     # MOTP = sum(iou) / # corrected boxes
-    MOTP = (sum(sum(d)) / sum(c)) * 100
+    MOTP = (sum(sum(d)) / sum(c)) * 100.0
 
     # MOTAL = 1 - (# fp + # fn + #log10(ids)) / # gts
-    MOTAL = (1 - (
-        sum(fp) + sum(missed) + np.log10(sum(mme) + 1)) / sum(g)) * 100
-    MOTA = (1 - (sum(fp) + sum(missed) + sum(mme)) / sum(g)) * \
-        100                      # MOTA = 1 - (# fp + # fn + # ids) / # gts
+    MOTAL = (1 - (sum(fp) + sum(missed) + np.log10(sum(mme) + 1)) / sum(g)) * 100
+    MOTA = (1 - (sum(fp) + sum(missed) + sum(mme)) / sum(g)) * 100
+    # MOTA = 1 - (# fp + # fn + # ids) / # gts
 
     # recall = TP / (TP + FN) = # corrected boxes / # gt boxes
     recall = sum(c) / sum(g) * 100
@@ -189,8 +198,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
         fr[i] = len(occur)
 
     FRA = sum(fr)
-    idmetrics = id_measures(gtDB, trackDB, iou_thres)
-    metrics = [idmetrics.IDF1, idmetrics.IDP, idmetrics.IDR, recall,
+    id_metrics = id_measures(gtDB, trackDB, iou_thresh)
+    metrics = [id_metrics.IDF1, id_metrics.IDP, id_metrics.IDR, recall,
                precision, FAR, n_gt, MT, PT, ML, FP, FN, IDS, FRA,
                MOTA, MOTP, MOTAL]
 
@@ -212,7 +221,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thres=0.5, min_vis=0):
     extra_info.PT = PT
     extra_info.MT = MT
     extra_info.FRA = FRA
-    extra_info.idmetrics = idmetrics
+    extra_info.idmetrics = id_metrics
 
     return metrics, extra_info
 

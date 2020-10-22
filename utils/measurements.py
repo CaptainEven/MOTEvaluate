@@ -62,7 +62,7 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
     n_ids_gt = len(gt_ids)
     n_ids_res = len(res_ids)
 
-    # mis-match error for each frame
+    # mis-match error(count) for each frame
     mme = np.zeros((n_frames_gt, ), dtype=float)  # ID switch in each frame
 
     # matches found in each frame
@@ -127,14 +127,14 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
                     if dist >= iou_thresh:
                         
                         # ----- fill value for Matched matrix
-                        MatchedDicts[fr_i][mapping_keys[k]] = res_track_id
+                        MatchedDicts[fr_i][gt_track_id] = res_track_id
                         # -----
 
                         if VERBOSE:
-                            print('perserving mapping: %d to %d' %
-                                  (mapping_keys[k], MatchedDicts[fr_i][mapping_keys[k]]))
+                            print('preserving mapping: %d to %d' %
+                                  (gt_track_id, MatchedDicts[fr_i][gt_track_id]))
 
-        # mapping remaining groundtruth and estimated boxes
+        # mapping remaining ground truth and estimated boxes
         unmapped_gt, unmapped_res = [], []
         unmapped_gt = [key for key in gt_idx_dicts[fr_i].keys() if key not in list(MatchedDicts[fr_i].keys())]
         unmapped_res = [key for key in res_idx_dicts[fr_i].keys() if key not in list(MatchedDicts[fr_i].values())]
@@ -213,11 +213,11 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
                     if res_mt_id != res_mt_id_last_nonempty:
                         mme[fr_i] += 1  # mismatched 
 
-        # matched in the current frame: time t
+        # true positive: matched number of gt ids in the current frame @ time t
         c[fr_i] = len(gt_tracked_ids)  
         
         # false positive in the current frame: 
-        fp[fr_i] = len(list(res_idx_dicts[fr_i].keys()))
+        fp[fr_i] = len(list(res_idx_dicts[fr_i].keys()))  # all res positive
         fp[fr_i] -= c[fr_i]
 
         # false negative in the current frame: missed gt ids count
