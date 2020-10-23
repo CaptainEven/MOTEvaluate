@@ -99,7 +99,13 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
     for i in range(resDB.shape[0]):
         # sometimes detection missed in certain frames, thus should be
         # assigned to ground truth frame id for alignment
-        frame = gt_frames_list.index(resDB[i, 0])  # original res track ids(start from 0)
+
+        try:
+            frame = gt_frames_list.index(resDB[i, 0])  # original res track ids(start from 0)
+        except Exception as e:
+            print(e)
+            continue
+
         res_id = np.where(res_ids == resDB[i, 1])[0][0]  # key: res_id start from 0 
         res_idx_dicts[frame][res_id] = i  # i: result data's item idx
 
