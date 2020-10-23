@@ -137,15 +137,16 @@ def print_metrics(header, metrics, banner=25):
 
     splits = [(0, 3), (3, 7), (7, 11), (11, 14)]
     print(' | '.join([print_format_name(
-                     metric_widths_short[start:end],
-                     metric_names_short[start:end], '{0: <%d}')
+        metric_widths_short[start:end],
+        metric_names_short[start:end], '{0: <%d}')
         for (start, end) in splits]))
 
-    print(' | '.join([print_format(
-                     metric_widths_short[start:end],
-                     metric_format_long[start:end],
-                     metrics[start:end], '{:%d%s}')
-        for (start, end) in splits]))
+    metric_str = ' | '.join([print_format(
+        metric_widths_short[start:end],
+        metric_format_long[start:end],
+        metrics[start:end], '{:%d%s}') for (start, end) in splits])
+    # metric_str = metric_str[1:]
+    print(metric_str)
 
 
 def print_metrics_ext(header, metrics, banner=30):
@@ -177,13 +178,15 @@ def print_metrics_ext(header, metrics, banner=30):
     splits = [(0, 3), (3, 6), (6, 10), (10, 14), (14, 17)]
 
     print(' | '.join([print_format_name(
-                     metric_widths_short[start:end],
-                     metric_names_short[start:end], '{0: <%d}')
+        metric_widths_short[start:end],
+        metric_names_short[start:end], '{0: <%d}')
         for (start, end) in splits]))
 
-    print(' | '.join([print_format(
-                     metric_widths_short[start:end],
-                     metric_format_long[start:end],
-                     metrics[start:end], '{:%d%s}')
-        for (start, end) in splits]))
+    metric_str = ' | '.join([print_format(
+        metric_widths_short[start:end],
+        metric_format_long[start:end],
+        metrics[start:end], '{:%d%s}')
+        for (start, end) in splits])
+
+    print(metric_str)
     print('\n\n')

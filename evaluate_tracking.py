@@ -46,7 +46,7 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     n_frames = min(len(track_frames), len(gt_frames))
 
     # keeping results: init to 1
-    res_keep = np.ones((trackDB.shape[0], ), dtype=float)  # number of res bbox
+    res_keep = np.ones((trackDB.shape[0],), dtype=float)  # number of res bbox
 
     for i in range(1, n_frames + 1):
         # find all data(one bbox correspond to one item of the data) in this frame
@@ -88,12 +88,12 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
         has_duplicates = uniq_frame_id_pairs.shape[0] < frame_id_pairs.shape[0]
         assert not has_duplicates, \
             'Duplicate ID in same frame [Frame ID: {}].'.format(i)
-    
+
     # filter res data
     keep_idx = np.where(res_keep == 1)[0]
     print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes,'
           'remaining {}/{} computed boxes'.format(
-              len(keep_idx), len(res_keep)))
+        len(keep_idx), len(res_keep)))
 
     trackDB = trackDB[keep_idx, :]
     print('Distractor IDs: {}'.format(
@@ -122,7 +122,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     # filter out invalid items from the data
     trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
 
-    # calculate all kinds of metrics
+    # ----- calculate all kinds of metrics
     # mme: mis-match error
     # tp: true positive
     # fp: false positive
@@ -132,6 +132,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     # M: matched dict, key: gt_track_id, col: res_track_id
     # all_fps: all frames' false positive
     mme, tp, fp, g, missed, d, M, all_fps = clear_mot_metrics(trackDB, gtDB, iou_thresh)
+    # -----
 
     gt_frames = np.unique(gtDB[:, 0])
 
@@ -143,7 +144,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     n_ids_res = len(res_ids)
 
     FN = sum(missed)  # false negative
-    FP = sum(fp)      # false positive
+    FP = sum(fp)  # false positive
     IDS = sum(mme)
 
     # MOTP = sum(iou) / # corrected boxes
@@ -151,7 +152,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
 
     # MOTAL = 1.0 - (# fp + # fn + #log10(ids)) / # gts
     MOTAL = (1.0 - (sum(fp) + sum(missed) + np.log10(sum(mme) + 1)) / sum(g)) * 100.0
-    MOTA = (1.0 - (sum(fp) + sum(missed) + sum(mme)) / sum(g)) * 100
+    MOTA = (1.0 - (sum(fp) + sum(missed) + sum(mme)) / sum(g)) * 100.0
     # MOTA = 1.0 - (# fp + # fn + # ids) / # gts
 
     # recall = TP / (TP + FN) = # corrected boxes / # gt boxes
@@ -162,45 +163,57 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
 
     # FAR = sum(fp) / # number_frames
     FAR = sum(fp) / n_frames_gt
-    MT_stats = np.zeros((n_ids_gt, ), dtype=float)
-    for i in range(n_ids_gt):
-        gt_in_person = np.where(gtDB[:, 1] == gt_ids[i])[0]
-        gt_total_len = len(gt_in_person)
-        gt_frames_tmp = gtDB[gt_in_person, 0].astype(int)
+    MT_stats = np.zeros((n_ids_gt,), dtype=float)  # what's this?
+
+    for fr_i in range(n_ids_gt):
+        inds_of_the_gt_id = np.where(gtDB[:, 1] == gt_ids[fr_i])[0]
+        n_frs_total_gt_id = len(inds_of_the_gt_id)
+        frs_contain_gt_id = gtDB[inds_of_the_gt_id, 0].astype(int)  # part frames of the gtDB
+
         gt_frames_list = list(gt_frames)
-        st_total_len = sum(
-            [1 if i in M[gt_frames_list.index(f)].keys() else 0
-                for f in gt_frames_tmp])
-        ratio = float(st_total_len) / gt_total_len
+        n_frs_matched_gt_id = sum([1 if fr_i in M[gt_frames_list.index(fr)].keys() else 0 for fr in frs_contain_gt_id])
+        ratio = float(n_frs_matched_gt_id) / n_frs_total_gt_id
 
         if ratio < 0.2:
-            MT_stats[i] = 1
+            MT_stats[fr_i] = 1
         elif ratio >= 0.8:
-            MT_stats[i] = 3
+            MT_stats[fr_i] = 3
         else:
-            MT_stats[i] = 2
+            MT_stats[fr_i] = 2
 
+    # statistics of stats
     ML = len(np.where(MT_stats == 1)[0])
     PT = len(np.where(MT_stats == 2)[0])
     MT = len(np.where(MT_stats == 3)[0])
 
     # fragment
-    fr = np.zeros((n_ids_gt, ), dtype=int)
-    M_arr = np.zeros((n_frames_gt, n_ids_gt), dtype=int)
+    fr = np.zeros((n_ids_gt,), dtype=int)
+    M_arr = np.zeros((n_frames_gt, n_ids_gt), dtype=int)  # what's this?
 
-    for i in range(n_frames_gt):
-        for gid in M[i].keys():
-            M_arr[i, gid] = M[i][gid] + 1
+    for fr_i in range(n_frames_gt):
+        for gt_id in M[fr_i].keys():
+            res_id = M[fr_i][gt_id]
+            M_arr[fr_i, gt_id] = res_id + 1  # why res_id + 1?
 
-    for i in range(n_ids_gt):
-        occur = np.where(M_arr[:, i] > 0)[0]
+    for fr_i in range(n_ids_gt):
+        occur = np.where(M_arr[:, fr_i] > 0)[0]
         occur = np.where(np.diff(occur) != 1)[0]
-        fr[i] = len(occur)
+        fr[fr_i] = len(occur)
 
     FRA = sum(fr)
+
+    # -----
     id_metrics = id_measures(gtDB, trackDB, iou_thresh)
-    metrics = [id_metrics.IDF1, id_metrics.IDP, id_metrics.IDR, recall,
-               precision, FAR, n_ids_gt, MT, PT, ML, FP, FN, IDS, FRA,
+    # -----
+
+    metrics = [id_metrics.IDF1,
+               id_metrics.IDP,
+               id_metrics.IDR,
+               recall,
+               precision,
+               FAR,
+               n_ids_gt,
+               MT, PT, ML, FP, FN, IDS, FRA,
                MOTA, MOTP, MOTAL]
 
     extra_info = edict()
@@ -216,7 +229,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     extra_info.n_gt = n_ids_gt
     extra_info.n_st = n_ids_res
 
-#    extra_info.allfps = allfps
+    #    extra_info.allfps = allfps
     extra_info.ML = ML
     extra_info.PT = PT
     extra_info.MT = MT
@@ -273,7 +286,7 @@ def evaluate_bm(all_metrics):
 
     # MOTAL = 1 - (# fp + # fn + #log10(ids)) / # gts
     MOTAL = (1 - (fp + missed + np.log10(ids + 1)) / g) * 100
-    
+
     # MOTA = 1 - (# fp + # fn + # ids) / # gts
     MOTA = (1 - (fp + missed + ids) / g) * 100
 
@@ -293,7 +306,7 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
         track_res = os.path.join(track_dir, seq_name, 'res.txt')
         gt_file = os.path.join(gt_dir, seq_name, 'gt.txt')
         assert os.path.exists(track_res) and os.path.exists(gt_file), \
-            'Either tracking result {} or '\
+            'Either tracking result {} or ' \
             'groundtruth directory {} does not exist'.format(
                 track_res, gt_file)
 

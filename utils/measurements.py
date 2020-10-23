@@ -235,22 +235,23 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
     return mme, c, fp, gt_counts, missed, d, MatchedDicts, all_fps
 
 
-def id_measures(gtDB, stDB, threshold):
+def id_measures(gtDB, trackDB, threshold):
     """
     compute MTMC metrics
     [IDP, IDR, IDF1]
     """
-    st_ids = np.unique(stDB[:, 1])
+    res_ids = np.unique(trackDB[:, 1])
     gt_ids = np.unique(gtDB[:, 1])
-    n_st = len(st_ids)
-    n_gt = len(gt_ids)
-    groundtruth = [gtDB[np.where(gtDB[:, 1] == gt_ids[i])[0], :]
-                   for i in range(n_gt)]
-    prediction = [stDB[np.where(stDB[:, 1] == st_ids[i])[0], :]
-                  for i in range(n_st)]
-    cost = np.zeros((n_gt + n_st, n_st + n_gt), dtype=float)
-    cost[n_gt:, :n_st] = sys.maxsize  # float('inf')
-    cost[:n_gt, n_st:] = sys.maxsize  # float('inf')
+
+    n_ids_res = len(res_ids)
+    n_ids_gt = len(gt_ids)
+
+    groundtruth = [gtDB[np.where(gtDB[:, 1] == gt_ids[i])[0], :] for i in range(n_ids_gt)]
+    prediction = [trackDB[np.where(trackDB[:, 1] == res_ids[i])[0], :] for i in range(n_ids_res)]
+
+    cost = np.zeros((n_ids_gt + n_ids_res, n_ids_res + n_ids_gt), dtype=float)
+    cost[n_ids_gt:, :n_ids_res] = sys.maxsize  # float('inf')
+    cost[:n_ids_gt, n_ids_res:] = sys.maxsize  # float('inf')
 
     fp = np.zeros(cost.shape)
     fn = np.zeros(cost.shape)
@@ -258,34 +259,37 @@ def id_measures(gtDB, stDB, threshold):
     # cost matrix of all trajectory pairs
     cost_block, fp_block, fn_block = cost_between_gt_pred(groundtruth, prediction, threshold)
 
-    cost[:n_gt, :n_st] = cost_block
-    fp[:n_gt, :n_st] = fp_block
-    fn[:n_gt, :n_st] = fn_block
+    cost[:n_ids_gt, :n_ids_res] = cost_block
+    fp[:n_ids_gt, :n_ids_res] = fp_block
+    fn[:n_ids_gt, :n_ids_res] = fn_block
 
     # computed trajectory match no groundtruth trajectory, FP
-    for i in range(n_st):
-        cost[i + n_gt, i] = prediction[i].shape[0]
-        fp[i + n_gt, i] = prediction[i].shape[0]
+    for i in range(n_ids_res):
+        cost[i + n_ids_gt, i] = prediction[i].shape[0]
+        fp[i + n_ids_gt, i] = prediction[i].shape[0]
 
     # groundtruth trajectory match no computed trajectory, FN
-    for i in range(n_gt):
-        cost[i, i + n_st] = groundtruth[i].shape[0]
-        fn[i, i + n_st] = groundtruth[i].shape[0]
+    for i in range(n_ids_gt):
+        cost[i, i + n_ids_res] = groundtruth[i].shape[0]
+        fn[i, i + n_ids_res] = groundtruth[i].shape[0]
     try:
         matched_indices = linear_assignment(cost)
     except:
         import pdb
         pdb.set_trace()
-    nbox_gt = sum([groundtruth[i].shape[0] for i in range(n_gt)])
-    nbox_st = sum([prediction[i].shape[0] for i in range(n_st)])
+
+    nbox_gt = sum([groundtruth[i].shape[0] for i in range(n_ids_gt)])
+    nbox_st = sum([prediction[i].shape[0] for i in range(n_ids_res)])
 
     IDFP = 0
     IDFN = 0
     for matched in zip(*matched_indices):
         IDFP += fp[matched[0], matched[1]]
         IDFN += fn[matched[0], matched[1]]
+
     IDTP = nbox_gt - IDFN
     assert IDTP == nbox_st - IDFP
+
     IDP = IDTP / (IDTP + IDFP) * 100               # IDP = IDTP / (IDTP + IDFP)
     IDR = IDTP / (IDTP + IDFN) * 100               # IDR = IDTP / (IDTP + IDFN)
     # IDF1 = 2 * IDTP / (2 * IDTP + IDFP + IDFN)
