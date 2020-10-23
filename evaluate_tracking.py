@@ -25,6 +25,7 @@ from utils.io import read_txt_to_struct, read_seqmaps, \
     extract_valid_gt_data, print_metrics
 from utils.bbox import bbox_overlap
 from utils.measurements import clear_mot_metrics, id_measures
+from utils.ParseDarkLabel2MOT16 import cls2id, id2cls
 
 
 def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
@@ -75,8 +76,9 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
                 continue
 
             # matched to distractors, discard the result box
-            if gt_in_frame_data[matched[1], 1] in distractor_ids:
-                res_keep[res_in_frame[matched[0]]] = 0
+            if distractor_ids is not None:
+                if gt_in_frame_data[matched[1], 1] in distractor_ids:
+                    res_keep[res_in_frame[matched[0]]] = 0
 
             # matched to a partial
             if gt_in_frame_data[matched[1], 8] < min_vis:
@@ -96,12 +98,16 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
         len(keep_idx), len(res_keep)))
 
     trackDB = trackDB[keep_idx, :]
-    print('Distractor IDs: {}'.format(
-        ', '.join(list(map(str, distractor_ids.astype(int))))))
 
-    # filter gt data
-    keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids
-                         and gtDB[i, 8] >= min_vis])  # distracor ids visibility ratio thresholding
+    if distractor_ids is not None:
+        print('Distractor IDs: {}'.format(', '.join(list(map(str, distractor_ids.astype(int))))))
+
+    if distractor_ids is not None:
+        # filter gt data
+        keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids
+                             and gtDB[i, 8] >= min_vis])  # distracor ids visibility ratio thresholding
+    else:
+        keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 8] >= min_vis])  # distracor ids visibility ratio thresholding
 
     # keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 6] != 0])
     print('[GT PREPROCESSING]: Removing distractor boxes, '
@@ -300,6 +306,33 @@ def evaluate_bm(all_metrics):
     return metrics
 
 
+def test_evaluate_mcmot_seq(gt_path, res_path):
+    """
+    """
+    if not (os.path.isfile(gt_path) and os.path.isfile(gt_path)):
+        print('[Err]: invalid file path.')
+        return
+
+    trackDB = read_txt_to_struct(res_path)
+    gtDB = read_txt_to_struct(gt_path)
+
+    for cls_id in id2cls.keys():
+        selected = np.where(cls_id == gtDB[:, 7])[0]
+        # print(selected)
+        cls_gtDB = gtDB[selected]
+        print('gt: {:d} items for class id {:d}'.format(len(cls_gtDB), cls_id))
+
+        selected = np.where(cls_id == trackDB[:, 7])[0]
+        cls_trackDB = trackDB[selected]
+        print('res: {:d} items for class id {:d}'.format(len(cls_trackDB), cls_id))
+
+        # ---------- main function to do evaluation
+        metrics, extra_info = evaluate_sequence(cls_trackDB, cls_gtDB, distractor_ids=None)
+        # ----------
+
+        print_metrics('MCMOT_seq2 evaluation for class{:s}'.format(id2cls[cls_id]), metrics)
+
+
 def evaluate_tracking(sequences, track_dir, gt_dir):
     all_info = []
     for seq_name in sequences:  # process every seq
@@ -349,8 +382,14 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    sequences = read_seqmaps(args.seqmap)
-    print('Seqs: ', sequences)
+    # # ----- command line running
+    # args = parse_args()
+    # sequences = read_seqmaps(args.seqmap)
+    # print('Seqs: ', sequences)
 
-    evaluate_tracking(sequences, args.track, args.gt)
+    # evaluate_tracking(sequences, args.track, args.gt)
+
+    # ----- test running
+    test_evaluate_mcmot_seq(gt_path='data/MCMOT_seq2/gt.txt', 
+                            res_path='data/MCMOT_seq2/res.txt')
+    print('Done.')
