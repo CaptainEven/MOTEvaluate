@@ -313,6 +313,7 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
         trackDB = read_txt_to_struct(track_res)  # track result
         gtDB = read_txt_to_struct(gt_file)  # ground truth
 
+        # filtering for specific class id
         gtDB, distractor_ids = extract_valid_gt_data(gtDB)
 
         # ---------- main function to do evaluation
