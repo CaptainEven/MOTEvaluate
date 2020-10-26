@@ -16,9 +16,11 @@ python evaluate_tracking.py
 (C) Yiwen Liu(765305261@qq.com), 2020-10
 """
 import os
+import copy
 import numpy as np
 import argparse
 # from sklearn.utils.linear_assignment_ import linear_assignment
+from collections import defaultdict
 from scipy.optimize import linear_sum_assignment as linear_assignment
 from easydict import EasyDict as edict
 from utils.io import read_txt_to_struct, read_seqmaps, \
@@ -62,7 +64,8 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
         gt_num = gt_in_frame.shape[0]
         overlaps = np.zeros((res_num, gt_num), dtype=float)  # iou matrix
         for gt_id in range(gt_num):  # row: res, col: gt
-            overlaps[:, gt_id] = bbox_overlap(res_in_frame_data[:, 2:6], gt_in_frame_data[gt_id, 2:6])
+            overlaps[:, gt_id] = bbox_overlap(
+                res_in_frame_data[:, 2:6], gt_in_frame_data[gt_id, 2:6])
 
         # build cost matrix
         cost_matrix = 1.0 - overlaps
@@ -95,19 +98,22 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     keep_idx = np.where(res_keep == 1)[0]
     print('[TRACK PREPROCESSING]: remove distractors and low visibility boxes,'
           'remaining {}/{} computed boxes'.format(
-        len(keep_idx), len(res_keep)))
+              len(keep_idx), len(res_keep)))
 
     trackDB = trackDB[keep_idx, :]
 
     if distractor_ids is not None:
-        print('Distractor IDs: {}'.format(', '.join(list(map(str, distractor_ids.astype(int))))))
+        print('Distractor IDs: {}'.format(
+            ', '.join(list(map(str, distractor_ids.astype(int))))))
 
     if distractor_ids is not None:
         # filter gt data
         keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 1] not in distractor_ids
                              and gtDB[i, 8] >= min_vis])  # distracor ids visibility ratio thresholding
     else:
-        keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 8] >= min_vis])  # distracor ids visibility ratio thresholding
+        # distracor ids visibility ratio thresholding
+        keep_idx = np.array(
+            [i for i in range(gtDB.shape[0]) if gtDB[i, 8] >= min_vis])
 
     # keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 6] != 0])
     print('[GT PREPROCESSING]: Removing distractor boxes, '
@@ -126,7 +132,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     min_vis: minimum tolerent visibility
     """
     # filter out invalid items from the data
-    trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
+    trackDB, gtDB = filter_DB(
+        trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
 
     # ----- calculate all kinds of metrics
     # mme: mis-match error
@@ -137,7 +144,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     # d: distance(or iou), key: gt_tracked_id
     # M: matched dict, key: gt_track_id, col: res_track_id
     # all_fps: all frames' false positive
-    mme, tp, fp, g, missed, d, M, all_fps = clear_mot_metrics(trackDB, gtDB, iou_thresh)
+    mme, tp, fp, g, missed, d, M, all_fps = clear_mot_metrics(
+        trackDB, gtDB, iou_thresh)
     # -----
 
     gt_frames = np.unique(gtDB[:, 0])
@@ -157,7 +165,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     MOTP = (sum(sum(d)) / sum(tp)) * 100.0
 
     # MOTAL = 1.0 - (# fp + # fn + #log10(ids)) / # gts
-    MOTAL = (1.0 - (sum(fp) + sum(missed) + np.log10(sum(mme) + 1)) / sum(g)) * 100.0
+    MOTAL = (1.0 - (sum(fp) + sum(missed) +
+                    np.log10(sum(mme) + 1)) / sum(g)) * 100.0
     MOTA = (1.0 - (sum(fp) + sum(missed) + sum(mme)) / sum(g)) * 100.0
     # MOTA = 1.0 - (# fp + # fn + # ids) / # gts
 
@@ -165,7 +174,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     recall = sum(tp) / sum(g) * 100.0
 
     # precision = TP / (TP + FP) = # corrected boxes / # det boxes
-    precision = sum(tp) / (sum(fp) + sum(tp)) * 100.0  # true positive / all_positive
+    precision = sum(tp) / (sum(fp) + sum(tp)) * \
+        100.0  # true positive / all_positive
 
     # FAR = sum(fp) / # number_frames
     FAR = sum(fp) / n_frames_gt
@@ -174,10 +184,12 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     for fr_i in range(n_ids_gt):
         inds_of_the_gt_id = np.where(gtDB[:, 1] == gt_ids[fr_i])[0]
         n_frs_total_gt_id = len(inds_of_the_gt_id)
-        frs_contain_gt_id = gtDB[inds_of_the_gt_id, 0].astype(int)  # part frames of the gtDB
+        frs_contain_gt_id = gtDB[inds_of_the_gt_id, 0].astype(
+            int)  # part frames of the gtDB
 
         gt_frames_list = list(gt_frames)
-        n_frs_matched_gt_id = sum([1 if fr_i in M[gt_frames_list.index(fr)].keys() else 0 for fr in frs_contain_gt_id])
+        n_frs_matched_gt_id = sum([1 if fr_i in M[gt_frames_list.index(
+            fr)].keys() else 0 for fr in frs_contain_gt_id])
         ratio = float(n_frs_matched_gt_id) / n_frs_total_gt_id
 
         if ratio < 0.2:
@@ -313,9 +325,21 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
         print('[Err]: invalid file path.')
         return
 
+    metric_names = ['IDF1', 'IDP', 'IDR',
+                    'Rcll', 'Prcn', 'FAR',
+                    'GT', 'MT', 'PT', 'ML',
+                    'FP', 'FN', 'IDs', 'FM',
+                    'MOTA', 'MOTP', 'MOTAL']
+    # metric_name2id = defaultdict(int)
+    # metric_id2name = defaultdict(str)
+    # for id, name in enumerate(metric_names):
+    #     metric_id2name[id] = name
+    #     metric_name2id[name] = id
+
     trackDB = read_txt_to_struct(res_path)
     gtDB = read_txt_to_struct(gt_path)
 
+    metrics = np.zeros((len(id2cls.keys()), len(metric_names)), dtype=float)
     for cls_id in id2cls.keys():
         selected = np.where(cls_id == gtDB[:, 7])[0]
         # print(selected)
@@ -324,13 +348,20 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
 
         selected = np.where(cls_id == trackDB[:, 7])[0]
         cls_trackDB = trackDB[selected]
-        print('res: {:d} items for class id {:d}'.format(len(cls_trackDB), cls_id))
+        print('res: {:d} items for class id {:d}'.format(
+            len(cls_trackDB), cls_id))
 
         # ---------- main function to do evaluation
-        metrics, extra_info = evaluate_sequence(cls_trackDB, cls_gtDB, distractor_ids=None)
+        cls_metrics, cls_extra_info = evaluate_sequence(cls_trackDB, cls_gtDB, distractor_ids=None)
+        metrics[cls_id] = cls_metrics
         # ----------
 
-        print_metrics('MCMOT_seq2 evaluation for class{:s}'.format(id2cls[cls_id]), metrics)
+        print_metrics('MCMOT_seq2 evaluation for class{:s}'.format(id2cls[cls_id]), cls_metrics)
+
+    # ---------- mean of the metrics
+    mean_metrics = metrics.mean(axis=0)
+    print_metrics('MCMOT_seq2 evaluation mean metrics:', mean_metrics)
+    # ----------
 
 
 def evaluate_tracking(sequences, track_dir, gt_dir):
@@ -390,6 +421,6 @@ if __name__ == '__main__':
     # evaluate_tracking(sequences, args.track, args.gt)
 
     # ----- test running
-    test_evaluate_mcmot_seq(gt_path='data/MCMOT_seq2/gt.txt', 
-                            res_path='data/MCMOT_seq2/res.txt')
+    test_evaluate_mcmot_seq(gt_path='data/MCMOT_seq2/gt_fps6.txt',
+                            res_path='data/MCMOT_seq2/res_fps6.txt')
     print('Done.')

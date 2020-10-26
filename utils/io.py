@@ -115,6 +115,7 @@ def print_metrics(header, metrics, banner=25):
     if len(metrics) == 17:
         print_metrics_ext(header, metrics)
         return
+        
     print('\n', '*' * banner, header, '*' * banner)
     # metric_names_long = ['Recall', 'Precision', 'False Alarm Rate',
     #                      'GT Tracks', 'Mostly Tracked', 'Partially Tracked',
