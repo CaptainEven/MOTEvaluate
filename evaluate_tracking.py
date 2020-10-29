@@ -132,8 +132,7 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     min_vis: minimum tolerent visibility
     """
     # filter out invalid items from the data
-    trackDB, gtDB = filter_DB(
-        trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
+    trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
 
     # ----- calculate all kinds of metrics
     # mme: mis-match error
@@ -335,9 +334,11 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
     #     metric_id2name[id] = name
     #     metric_name2id[name] = id
 
+    # read txt file
     trackDB = read_txt_to_struct(res_path)
     gtDB = read_txt_to_struct(gt_path)
 
+    # compute for each object class
     metrics = np.zeros((len(id2cls.keys()), len(metric_names)), dtype=float)
     for cls_id in id2cls.keys():
         selected = np.where(cls_id == gtDB[:, 7])[0]
@@ -347,8 +348,7 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
 
         selected = np.where(cls_id == trackDB[:, 7])[0]
         cls_trackDB = trackDB[selected]
-        print('res: {:d} items for class id {:d}'.format(
-            len(cls_trackDB), cls_id))
+        print('res: {:d} items for class id {:d}'.format(len(cls_trackDB), cls_id))
 
         # ---------- main function to do evaluation
         cls_metrics, cls_extra_info = evaluate_sequence(cls_trackDB, cls_gtDB, distractor_ids=None)
@@ -370,8 +370,7 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
         gt_file = os.path.join(gt_dir, seq_name, 'gt.txt')
         assert os.path.exists(track_res) and os.path.exists(gt_file), \
             'Either tracking result {} or ' \
-            'groundtruth directory {} does not exist'.format(
-                track_res, gt_file)
+            'groundtruth directory {} does not exist'.format(track_res, gt_file)
 
         trackDB = read_txt_to_struct(track_res)  # track result
         gtDB = read_txt_to_struct(gt_file)  # ground truth
@@ -420,6 +419,6 @@ if __name__ == '__main__':
     # evaluate_tracking(sequences, args.track, args.gt)
 
     # ----- test running
-    test_evaluate_mcmot_seq(gt_path='data/MCMOT_seq2/gt_fps6.txt',
-                            res_path='data/MCMOT_seq2/res_fps6.txt')
+    test_evaluate_mcmot_seq(gt_path='data/MCMOT_seq2/gt_6fps.txt',
+                            res_path='data/MCMOT_seq2/res_6fps.txt')
     print('Done.')

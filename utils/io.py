@@ -31,14 +31,14 @@ def read_txt_to_struct(f_name):
       GT: ignored class flag] [class] [visibility ratio]
     """
     data = []
-    with open(f_name, 'r') as fid:
+    with open(f_name, 'r', encoding='utf-8') as fid:
         lines = fid.readlines()
         for line in lines:
             line = list(map(float, line.strip().split(',')))
             data.append(line)
     data = np.array(data)
 
-    # change tlwhe format to xyxy format
+    # change tlwh format to xyxy format
     data[:, 4:6] += data[:, 2:4]
     return data
 
@@ -115,7 +115,7 @@ def print_metrics(header, metrics, banner=25):
     if len(metrics) == 17:
         print_metrics_ext(header, metrics)
         return
-        
+
     print('\n', '*' * banner, header, '*' * banner)
     # metric_names_long = ['Recall', 'Precision', 'False Alarm Rate',
     #                      'GT Tracks', 'Mostly Tracked', 'Partially Tracked',

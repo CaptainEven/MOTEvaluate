@@ -31,7 +31,7 @@ id2cls = {
 W, H = 1920, 1080
 
 
-def parse(darklabel_txt_path, out_mot16_path=None, interval=1):
+def parse(darklabel_txt_path, interval=1, out_mot16_path=None):
     """
     格式解析与转换
     """
@@ -132,7 +132,7 @@ def parse_seqs(seq_root, interval=1):
         darklabel_txt_path = seq_dir + '/' + seq_name + '_gt.txt'
 
         # ---------- do pasing for a seq
-        parse(darklabel_txt_path, out_mot16_path=None, interval=interval)
+        parse(darklabel_txt_path, interval=interval, out_mot16_path=None)
         # ----------
 
 
