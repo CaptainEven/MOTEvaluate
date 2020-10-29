@@ -141,11 +141,10 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     # fp: false positive
     # g: ground truth
     # missed: false negative
-    # d: distance(or iou), key: gt_tracked_id
+    # d: iou(or 1-distance), key: gt_tracked_id
     # M: matched dict, key: gt_track_id, col: res_track_id
     # all_fps: all frames' false positive
-    mme, tp, fp, g, missed, d, M, all_fps = clear_mot_metrics(
-        trackDB, gtDB, iou_thresh)
+    mme, tp, fp, g, missed, d, M, all_fps = clear_mot_metrics(trackDB, gtDB, iou_thresh)
     # -----
 
     gt_frames = np.unique(gtDB[:, 0])
@@ -359,7 +358,7 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
         print_metrics('MCMOT_seq2 evaluation for class{:s}'.format(id2cls[cls_id]), cls_metrics)
 
     # ---------- mean of the metrics
-    mean_metrics = metrics.mean(axis=0)
+    mean_metrics = metrics.mean(axis=0)  # mean value of each column
     print_metrics('MCMOT_seq2 evaluation mean metrics:', mean_metrics)
     # ----------
 
