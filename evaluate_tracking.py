@@ -135,7 +135,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     min_vis: minimum tolerent visibility
     """
     # filter out invalid items from the data
-    trackDB, gtDB = filter_DB(trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
+    trackDB, gtDB = filter_DB(
+        trackDB, gtDB, distractor_ids, iou_thresh, min_vis)
 
     # ----- calculate all kinds of metrics
     # mme: mis-match error
@@ -146,7 +147,8 @@ def evaluate_sequence(trackDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     # d: iou(or 1-distance), key: gt_tracked_id
     # M: matched dict, key: gt_track_id, col: res_track_id
     # all_fps: all frames' false positive
-    mme, tp, fp, g, missed, d, M, all_fps = clear_mot_metrics(trackDB, gtDB, iou_thresh)
+    mme, tp, fp, g, missed, d, M, all_fps = clear_mot_metrics(
+        trackDB, gtDB, iou_thresh)
     # -----
 
     gt_frames = np.unique(gtDB[:, 0])
@@ -319,7 +321,7 @@ def evaluate_bm(all_metrics):
     return metrics
 
 
-def test_evaluate_mcmot_seq(gt_path, res_path):
+def evaluate_mcmot_seq(gt_path, res_path):
     """
     """
     if not (os.path.isfile(gt_path) and os.path.isfile(gt_path)):
@@ -347,22 +349,26 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
         selected = np.where(cls_id == gtDB[:, 7])[0]
         # print(selected)
         cls_gtDB = gtDB[selected]
-        print('gt: {:d} items for object class {:s}'.format(len(cls_gtDB), id2cls[cls_id]))
+        print('gt: {:d} items for object class {:s}'.format(
+            len(cls_gtDB), id2cls[cls_id]))
         if len(cls_gtDB) == 0:
             continue
 
         selected = np.where(cls_id == trackDB[:, 7])[0]
         cls_trackDB = trackDB[selected]
-        print('res: {:d} items for object class {:s}'.format(len(cls_trackDB), id2cls[cls_id]))
+        print('res: {:d} items for object class {:s}'.format(
+            len(cls_trackDB), id2cls[cls_id]))
         if len(cls_trackDB) == 0:
             continue
 
         # ---------- main function to do evaluation
-        cls_metrics, cls_extra_info = evaluate_sequence(cls_trackDB, cls_gtDB, distractor_ids=None)
+        cls_metrics, cls_extra_info = evaluate_sequence(
+            cls_trackDB, cls_gtDB, distractor_ids=None)
         metrics[cls_id] = cls_metrics
         # ----------
 
-        print_metrics('Seq evaluation for class {:s}'.format(id2cls[cls_id]), cls_metrics)
+        print_metrics('Seq evaluation for class {:s}'.format(
+            id2cls[cls_id]), cls_metrics)
 
     # ---------- mean of the metrics
     mean_metrics = metrics.mean(axis=0)  # mean value of each column
@@ -377,7 +383,8 @@ def evaluate_tracking(sequences, track_dir, gt_dir):
         gt_file = os.path.join(gt_dir, seq_name, 'gt.txt')
         assert os.path.exists(track_res) and os.path.exists(gt_file), \
             'Either tracking result {} or ' \
-            'groundtruth directory {} does not exist'.format(track_res, gt_file)
+            'groundtruth directory {} does not exist'.format(
+                track_res, gt_file)
 
         trackDB = read_txt_to_struct(track_res)  # track result
         gtDB = read_txt_to_struct(gt_file)  # ground truth
@@ -426,6 +433,6 @@ if __name__ == '__main__':
     # evaluate_tracking(sequences, args.track, args.gt)
 
     # ----- test running
-    test_evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_interval1.txt',
-                            res_path='F:/val_seq/val_1_results_fps6.txt')
+    evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_interval1.txt',
+                       res_path='F:/val_seq/val_1_results_fps6.txt')
     print('Done.')
