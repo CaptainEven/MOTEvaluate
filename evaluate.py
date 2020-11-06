@@ -371,15 +371,14 @@ def evaluate_mcmot_seq(gt_path, res_path):
     # ----------
 
 
-def evaluate_tracking(sequences, track_dir, gt_dir):
+def evaluate_seqs(seqs, track_dir, gt_dir):
     all_info = []
-    for seq_name in sequences:  # process every seq
+    for seq_name in seqs:  # process every seq
         track_res = os.path.join(track_dir, seq_name, 'res.txt')
         gt_file = os.path.join(gt_dir, seq_name, 'gt.txt')
         assert os.path.exists(track_res) and os.path.exists(gt_file), \
             'Either tracking result {} or ' \
-            'groundtruth directory {} does not exist'.format(
-                track_res, gt_file)
+            'groundtruth directory {} does not exist'.format(track_res, gt_file)
 
         trackDB = read_txt_to_struct(track_res)  # track result
         gtDB = read_txt_to_struct(gt_file)  # ground truth
@@ -422,10 +421,10 @@ def parse_args():
 if __name__ == '__main__':
     # # ----- command line running
     # args = parse_args()
-    # sequences = read_seqmaps(args.seqmap)
+    # seqs = read_seqmaps(args.seqmap)
     # print('Seqs: ', sequences)
 
-    # evaluate_tracking(sequences, args.track, args.gt)
+    # evaluate_seqs(seqs, args.track, args.gt)
 
     # ----- test running
     evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_interval1.txt',
