@@ -118,7 +118,10 @@ def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
     # keep_idx = np.array([i for i in range(gtDB.shape[0]) if gtDB[i, 6] != 0])
     print('[GT PREPROCESSING]: Removing distractor boxes, '
           'remaining {}/{} boxes'.format(len(keep_idx), gtDB.shape[0]))
-    gtDB = gtDB[keep_idx, :]
+    try:
+        gtDB = gtDB[keep_idx, :]
+    except Exception as e:
+        print(e)
 
     return trackDB, gtDB
 
@@ -328,11 +331,11 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
                     'GT', 'MT', 'PT', 'ML',
                     'FP', 'FN', 'IDs', 'FM',
                     'MOTA', 'MOTP', 'MOTAL']
-    # metric_name2id = defaultdict(int)
-    # metric_id2name = defaultdict(str)
-    # for id, name in enumerate(metric_names):
-    #     metric_id2name[id] = name
-    #     metric_name2id[name] = id
+    metric_name2id = defaultdict(int)
+    metric_id2name = defaultdict(str)
+    for id, name in enumerate(metric_names):
+        metric_id2name[id] = name
+        metric_name2id[name] = id
 
     # read txt file
     trackDB = read_txt_to_struct(res_path)
@@ -344,22 +347,26 @@ def test_evaluate_mcmot_seq(gt_path, res_path):
         selected = np.where(cls_id == gtDB[:, 7])[0]
         # print(selected)
         cls_gtDB = gtDB[selected]
-        print('gt: {:d} items for class id {:d}'.format(len(cls_gtDB), cls_id))
+        print('gt: {:d} items for object class {:s}'.format(len(cls_gtDB), id2cls[cls_id]))
+        if len(cls_gtDB) == 0:
+            continue
 
         selected = np.where(cls_id == trackDB[:, 7])[0]
         cls_trackDB = trackDB[selected]
-        print('res: {:d} items for class id {:d}'.format(len(cls_trackDB), cls_id))
+        print('res: {:d} items for object class {:s}'.format(len(cls_trackDB), id2cls[cls_id]))
+        if len(cls_trackDB) == 0:
+            continue
 
         # ---------- main function to do evaluation
         cls_metrics, cls_extra_info = evaluate_sequence(cls_trackDB, cls_gtDB, distractor_ids=None)
         metrics[cls_id] = cls_metrics
         # ----------
 
-        print_metrics('MCMOT_seq2 evaluation for class{:s}'.format(id2cls[cls_id]), cls_metrics)
+        print_metrics('Seq evaluation for class {:s}'.format(id2cls[cls_id]), cls_metrics)
 
     # ---------- mean of the metrics
     mean_metrics = metrics.mean(axis=0)  # mean value of each column
-    print_metrics('MCMOT_seq2 evaluation mean metrics:', mean_metrics)
+    print_metrics('Seq evaluation mean metrics:', mean_metrics)
     # ----------
 
 
@@ -419,6 +426,6 @@ if __name__ == '__main__':
     # evaluate_tracking(sequences, args.track, args.gt)
 
     # ----- test running
-    test_evaluate_mcmot_seq(gt_path='data/MCMOT_seq2/gt_6fps.txt',
-                            res_path='data/MCMOT_seq2/res_6fps.txt')
+    test_evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_interval1.txt',
+                            res_path='F:/val_seq/val_1_results_fps6.txt')
     print('Done.')

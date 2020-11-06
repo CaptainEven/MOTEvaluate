@@ -138,6 +138,9 @@ def parse_seqs(seq_root, interval=1):
 
 if __name__ == '__main__':
     # parse(darklabel_txt_path='F:/seq_data/images/mcmot_seq_imgs_1/mcmot_seq_imgs_1_gt.txt')
-    parse_seqs(seq_root='F:/seq_data/', interval=2)
+    # parse_seqs(seq_root='F:/seq_data/', interval=2)
+    parse(darklabel_txt_path='F:/val_seq/val_1_gt.txt',
+          interval=1,
+          out_mot16_path=None)
 
     print('Done.')
