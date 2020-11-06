@@ -33,8 +33,9 @@ import sys
 import numpy as np
 # from sklearn.utils.linear_assignment_ import linear_assignment
 from scipy.optimize import linear_sum_assignment as linear_assignment
-from .bbox import bbox_overlap
+from utils.bbox import bbox_overlap
 from easydict import EasyDict as edict
+
 VERBOSE = False
 
 
@@ -48,12 +49,12 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
     """
     # result and gt frame inds(start from 1)
     res_frames = np.unique(resDB[:, 0])
-    gt_frames = np.unique(gtDB[:, 0])  
+    gt_frames = np.unique(gtDB[:, 0])
 
     # result and gt unique IDs
-    # either start from 0 or 1 
-    res_ids = np.unique(resDB[:, 1])   # result IDs start from 0
-    gt_ids = np.unique(gtDB[:, 1])     # gt id start from 1
+    # either start from 0 or 1
+    res_ids = np.unique(resDB[:, 1])  # result IDs start from 0
+    gt_ids = np.unique(gtDB[:, 1])  # gt id start from 1
 
     # n_frames_gt = int(max(max(res_frames), max(gt_frames)))
     # n_ids_gt = int(max(gt_ids))
@@ -63,27 +64,27 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
     n_ids_res = len(res_ids)
 
     # mis-match error(count) for each frame
-    mme = np.zeros((n_frames_gt, ), dtype=float)  # ID switch in each frame
+    mme = np.zeros((n_frames_gt,), dtype=float)  # ID switch in each frame
 
     # matches found in each frame
-    c = np.zeros((n_frames_gt, ), dtype=float)
+    c = np.zeros((n_frames_gt,), dtype=float)
 
     # false positives in each frame
-    fp = np.zeros((n_frames_gt, ), dtype=float)
+    fp = np.zeros((n_frames_gt,), dtype=float)
 
     # missed gts in each frame
-    missed = np.zeros((n_frames_gt, ), dtype=float)       
+    missed = np.zeros((n_frames_gt,), dtype=float)
 
     # gt count in each frame
-    gt_counts = np.zeros((n_frames_gt, ), dtype=float)
+    gt_counts = np.zeros((n_frames_gt,), dtype=float)
 
     # overlap matrix(iou matrix)
-    d = np.zeros((n_frames_gt, n_ids_gt), dtype=float)   
+    d = np.zeros((n_frames_gt, n_ids_gt), dtype=float)
 
-    # false positives for all gt frames   
+    # false positives for all gt frames
     all_fps = np.zeros((n_frames_gt, n_ids_res), dtype=float)  # account for the number of non-zeros
 
-    gt_idx_dicts = [{} for i in range(n_frames_gt)]   # gt frame inds
+    gt_idx_dicts = [{} for i in range(n_frames_gt)]  # gt frame inds
     res_idx_dicts = [{} for i in range(n_frames_gt)]  # res frame inds
 
     # matched pairs hashing gt_id to res_id in each frame
@@ -106,7 +107,7 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
             print(e)
             continue
 
-        res_id = np.where(res_ids == resDB[i, 1])[0][0]  # key: res_id start from 0 
+        res_id = np.where(res_ids == resDB[i, 1])[0][0]  # key: res_id start from 0
         res_idx_dicts[frame][res_id] = i  # i: result data's item idx
 
     # statistics for each frame(start from the second frame)
@@ -131,7 +132,7 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
 
                     dist = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
                     if dist >= iou_thresh:
-                        
+
                         # ----- fill value for Matched matrix
                         MatchedDicts[fr_i][gt_track_id] = res_track_id
                         # -----
@@ -149,7 +150,7 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
             # iou matrix: row: gt, col: res
             overlaps = np.zeros((n_ids_gt, n_ids_res), dtype=float)
 
-            for i in range(len(unmapped_gt)):  # gt 
+            for i in range(len(unmapped_gt)):  # gt
                 row_gt = gt_idx_dicts[fr_i][unmapped_gt[i]]  # row idx(item idx in gt data)
 
                 for fr_j in range(len(unmapped_res)):
@@ -158,7 +159,7 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
                     dist = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
                     if dist[0] >= iou_thresh:
                         overlaps[i][fr_j] = dist[0]
-            
+
             # hungarian matching: return row_ind(gt), col_ind(res)
             cost_matrix = 1.0 - overlaps
             matched_indices = linear_assignment(cost_matrix)
@@ -166,7 +167,7 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
             for matched in zip(*matched_indices):
                 if overlaps[matched[0], matched[1]] == 0:
                     continue
-                
+
                 # ----- fill value for Matched matrix,
                 #  key: gt track id(start from 0), val: res track id(start from 0)
                 MatchedDicts[fr_i][unmapped_gt[matched[0]]] = unmapped_res[matched[1]]
@@ -174,14 +175,14 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
 
                 if VERBOSE:
                     print('adding mapping: %d to %d' \
-                        % (unmapped_gt[matched[0]], MatchedDicts[fr_i][unmapped_gt[matched[0]]]))
+                          % (unmapped_gt[matched[0]], MatchedDicts[fr_i][unmapped_gt[matched[0]]]))
 
         # compute statistics
-        gt_tracked_ids = list(MatchedDicts[fr_i].keys())    # gt track ids(start from 0)
+        gt_tracked_ids = list(MatchedDicts[fr_i].keys())  # gt track ids(start from 0)
         res_tracked_ids = list(MatchedDicts[fr_i].values())  # res track ids(start from 0)
 
         # false positive of frame fr_i
-        fps = [key for key in res_idx_dicts[fr_i].keys() if key not in res_tracked_ids]  
+        fps = [key for key in res_idx_dicts[fr_i].keys() if key not in res_tracked_ids]
 
         # for k in range(len(fps)):
         #     all_fps[fr_i][fps[k]] = fps[k]
@@ -201,8 +202,8 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
                     if gt_tracked_id in MatchedDicts[fr_j].keys():
                         last_non_empty_fr = fr_j
                         break
-                
-                # if the tracked gt id exists in the previous frames(time t-1) 
+
+                # if the tracked gt id exists in the previous frames(time t-1)
                 # and also tracked in any previous frames <= t-1
                 if gt_tracked_id in gt_idx_dicts[fr_i - 1].keys() and last_non_empty_fr != -1:
                     res_mt_id, res_mt_id_last_nonempty = -1, -1
@@ -217,12 +218,12 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
 
                     # for the same gt id, but the two matched res id are not the same
                     if res_mt_id != res_mt_id_last_nonempty:
-                        mme[fr_i] += 1  # mismatched 
+                        mme[fr_i] += 1  # mismatched
 
         # true positive: matched number of gt ids in the current frame @ time t
-        c[fr_i] = len(gt_tracked_ids)  
-        
-        # false positive in the current frame: 
+        c[fr_i] = len(gt_tracked_ids)
+
+        # false positive in the current frame:
         fp[fr_i] = len(list(res_idx_dicts[fr_i].keys()))  # all res positive
         fp[fr_i] -= c[fr_i]
 
@@ -235,7 +236,7 @@ def clear_mot_metrics(resDB, gtDB, iou_thresh):
 
             row_gt = gt_idx_dicts[fr_i][gt_tracked_id]
             row_res = res_idx_dicts[fr_i][res_tracked_id]
-            
+
             d[fr_i][gt_tracked_id] = bbox_overlap(resDB[row_res, 2:6], gtDB[row_gt, 2:6])
 
     return mme, c, fp, gt_counts, missed, d, MatchedDicts, all_fps
@@ -296,8 +297,8 @@ def id_measures(gtDB, trackDB, threshold):
     IDTP = nbox_gt - IDFN
     assert IDTP == nbox_st - IDFP
 
-    IDP = IDTP / (IDTP + IDFP) * 100               # IDP = IDTP / (IDTP + IDFP)
-    IDR = IDTP / (IDTP + IDFN) * 100               # IDR = IDTP / (IDTP + IDFN)
+    IDP = IDTP / (IDTP + IDFP) * 100  # IDP = IDTP / (IDTP + IDFP)
+    IDR = IDTP / (IDTP + IDFN) * 100  # IDR = IDTP / (IDTP + IDFN)
     # IDF1 = 2 * IDTP / (2 * IDTP + IDFP + IDFN)
     IDF1 = 2 * IDTP / (nbox_gt + nbox_st) * 100
 
@@ -320,7 +321,7 @@ def corresponding_frame(traj1, len1, traj2, len2):
     Assume both trajectories in ascending frame ID
     """
     p1, p2 = 0, 0
-    loc = -1 * np.ones((len1, ), dtype=int)
+    loc = -1 * np.ones((len1,), dtype=int)
     while p1 < len1 and p2 < len2:
         if traj1[p1] < traj2[p2]:
             loc[p1] = -1
@@ -338,7 +339,7 @@ def compute_distance(traj1, traj2, matched_pos):
     """
     Compute the loss hit in traj2 regarding to traj1
     """
-    distance = np.zeros((len(matched_pos), ), dtype=float)
+    distance = np.zeros((len(matched_pos),), dtype=float)
     for i in range(len(matched_pos)):
         if matched_pos[i] == -1:
             continue
@@ -348,39 +349,48 @@ def compute_distance(traj1, traj2, matched_pos):
     return distance
 
 
-def cost_between_trajectories(traj1, traj2, threshold):
-    [npoints1, dim1] = traj1.shape
-    [npoints2, dim2] = traj2.shape
+def cost_between_trajectories(traj_1, traj_2, threshold):
+    [n_points_1, dim_1] = traj_1.shape
+    [n_points_2, dim_2] = traj_2.shape
     # find start and end frame of each trajectories
-    start1 = traj1[0, 0]
-    end1 = traj1[-1, 0]
-    start2 = traj2[0, 0]
-    end2 = traj2[-1, 0]
+    start_1 = traj_1[0, 0]
+    end_1 = traj_1[-1, 0]
+    start_2 = traj_2[0, 0]
+    end_2 = traj_2[-1, 0]
 
     # check frame overlap
-    has_overlap = max(start1, start2) < min(end1, end2)
+    has_overlap = max(start_1, start_2) < min(end_1, end_2)
     if not has_overlap:
-        fn = npoints1
-        fp = npoints2
+        fn = n_points_1
+        fp = n_points_2
         return fp, fn
 
     # gt trajectory mapping to st, check gt missed
     matched_pos1 = corresponding_frame(
-        traj1[:, 0], npoints1, traj2[:, 0], npoints2)
+        traj_1[:, 0], n_points_1, traj_2[:, 0], n_points_2)
+
     # st trajectory mapping to gt, check computed one false alarms
     matched_pos2 = corresponding_frame(
-        traj2[:, 0], npoints2, traj1[:, 0], npoints1)
-    dist1 = compute_distance(traj1, traj2, matched_pos1)
-    dist2 = compute_distance(traj2, traj1, matched_pos2)
+        traj_2[:, 0], n_points_2, traj_1[:, 0], n_points_1)
+    dist1 = compute_distance(traj_1, traj_2, matched_pos1)
+    dist2 = compute_distance(traj_2, traj_1, matched_pos2)
+
     # FN
-    fn = sum([1 for i in range(npoints1) if dist1[i] < threshold])
+    fn = sum([1 for i in range(n_points_1) if dist1[i] < threshold])
+
     # FP
-    fp = sum([1 for i in range(npoints2) if dist2[i] < threshold])
+    fp = sum([1 for i in range(n_points_2) if dist2[i] < threshold])
     return fp, fn
 
 
-def cost_between_gt_pred(groundtruth, prediction, threshold):
-    n_gt = len(groundtruth)
+def cost_between_gt_pred(ground_truth, prediction, threshold):
+    """
+    :param ground_truth:
+    :param prediction:
+    :param threshold:
+    :return:
+    """
+    n_gt = len(ground_truth)
     n_st = len(prediction)
     cost = np.zeros((n_gt, n_st), dtype=float)
     fp = np.zeros((n_gt, n_st), dtype=float)
@@ -388,10 +398,9 @@ def cost_between_gt_pred(groundtruth, prediction, threshold):
     for i in range(n_gt):
         for j in range(n_st):
             fp[i, j], fn[i, j] = cost_between_trajectories(
-                groundtruth[i], prediction[j], threshold)
+                ground_truth[i], prediction[j], threshold)
             cost[i, j] = fp[i, j] + fn[i, j]
     return cost, fp, fn
-
 
 # reference(blog): https://blog.csdn.net/qq_36342854/article/details/102984622
 # reference(paper_2008): <<CLEAR Metrics-MOTA&MOTP>>

@@ -6,7 +6,7 @@ An python reimplementation of toolkit in
 This file deals with file IO / invalid annotation
  removal / result output
 
-(C) Han Shen(thushenhan@gmail.com), 2018-02
+(C) Yiwen Liu(765305261@qq.com), 2020-10
 """
 import os
 import numpy as np

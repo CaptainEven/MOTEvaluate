@@ -4,11 +4,11 @@ import os
 import cv2
 
 classes = [
-    'car',           # 0
-    'bicycle',       # 1
-    'person',        # 2
-    'cyclist',       # 3
-    'tricycle'       # 4
+    'car',  # 0
+    'bicycle',  # 1
+    'person',  # 2
+    'cyclist',  # 3
+    'tricycle'  # 4
 ]  # 5类(不包括背景)
 
 cls2id = {
@@ -31,7 +31,10 @@ id2cls = {
 W, H = 1920, 1080
 
 
-def convert_darklabel_2_mot16(darklabel_txt_path, interval=1, out_mot16_path=None):
+def convert_darklabel_2_mot16(darklabel_txt_path,
+                              interval=1,
+                              fps=12,
+                              out_mot16_path=None):
     """
     将darklabel标注格式frame # n [id, x1, y1, x2, y2, label]
     转换成mot16格式
@@ -41,11 +44,12 @@ def convert_darklabel_2_mot16(darklabel_txt_path, interval=1, out_mot16_path=Non
         return
 
     if out_mot16_path is None:
+        out_fps = fps // int(interval)
         print('[Note]: out_mot16_path not defined, using default.')
         dir_name, file_name = os.path.split(darklabel_txt_path)
         out_mot16_path = dir_name + '/' + \
-            file_name.split('.')[0] + \
-            '_mot16_interval{:d}.txt'.format(interval)
+                         file_name.split('.')[0] + \
+                         '_mot16_fps{:d}.txt'.format(out_fps)
 
     with open(darklabel_txt_path, 'r', encoding='utf-8') as r_h, \
             open(out_mot16_path, 'w', encoding='utf-8') as w_h:
@@ -89,20 +93,20 @@ def convert_darklabel_2_mot16(darklabel_txt_path, interval=1, out_mot16_path=Non
                 # 写入该obj的数据
                 if interval == 1:
                     write_line_str = str(fr_id + 1) + ',' \
-                        + str(track_id) + ',' \
-                        + str(left) + ',' \
-                        + str(top) + ',' \
-                        + str(width) + ',' \
-                        + str(height) + ',' \
-                        + '1,' + str(class_id) + ',' + '1'
+                                     + str(track_id) + ',' \
+                                     + str(left) + ',' \
+                                     + str(top) + ',' \
+                                     + str(width) + ',' \
+                                     + str(height) + ',' \
+                                     + '1,' + str(class_id) + ',' + '1'
                 else:
                     write_line_str = str(fr_idx + 1) + ',' \
-                        + str(track_id) + ',' \
-                        + str(left) + ',' \
-                        + str(top) + ',' \
-                        + str(width) + ',' \
-                        + str(height) + ',' \
-                        + '1,' + str(class_id) + ',' + '1'
+                                     + str(track_id) + ',' \
+                                     + str(left) + ',' \
+                                     + str(top) + ',' \
+                                     + str(width) + ',' \
+                                     + str(height) + ',' \
+                                     + '1,' + str(class_id) + ',' + '1'
                 print(write_line_str)
                 w_h.write(write_line_str + '\n')
 
@@ -142,7 +146,7 @@ if __name__ == '__main__':
     # convert_darklabel_2_mot16(darklabel_txt_path='F:/seq_data/images/mcmot_seq_imgs_1/mcmot_seq_imgs_1_gt.txt')
     # convert_seqs(seq_root='F:/seq_data/', interval=2)
     convert_darklabel_2_mot16(darklabel_txt_path='F:/val_seq/val_1_gt.txt',
-                              interval=1,
+                              interval=2,
                               out_mot16_path=None)
 
     print('Done.')

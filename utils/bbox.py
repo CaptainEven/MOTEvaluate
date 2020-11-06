@@ -16,7 +16,7 @@ def bbox_overlap(ex_box, gt_box):
     paded_gt = np.tile(gt_box, [ex_box.shape[0], 1])
     insec = intersection(ex_box, paded_gt)
 
-    uni = areasum(ex_box, paded_gt) - insec
+    uni = area_sum(ex_box, paded_gt) - insec
     return insec / uni
 
 
@@ -28,6 +28,6 @@ def intersection(a, b):
     return np.maximum(w, 0) * np.maximum(h, 0)
 
 
-def areasum(a, b):
+def area_sum(a, b):
     return (a[:, 2] - a[:, 0]) * (a[:, 3] - a[:, 1]) + \
         (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])

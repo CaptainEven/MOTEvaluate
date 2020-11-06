@@ -6,7 +6,7 @@ An python reimplementation of toolkit in
 This file executes the evaluation.
 
 usage:
-python evaluat.py
+python evaluate.py
     --bm                       Whether to evaluate multiple files(benchmarks)
     --seqmap [filename]        List of sequences to be evaluated
     --track  [dirname]         Tracking results directory: default path --
@@ -168,8 +168,13 @@ def evaluate_seq(resDB, gtDB, distractor_ids, iou_thresh=0.5, min_vis=0):
     # MOTAL = 1.0 - (# fp + # fn + #log10(ids)) / # gts
     MOTAL = (1.0 - (sum(fp) + sum(missed) +
                     np.log10(sum(mme) + 1)) / sum(g)) * 100.0
-    MOTA = (1.0 - (sum(fp) + sum(missed) + sum(mme)) / sum(g)) * 100.0
-    # MOTA = 1.0 - (# fp + # fn + # ids) / # gts
+                
+    sum_fp = sum(fp)
+    sum_missed = sum(missed)
+    sum_mme = sum(mme)
+    sum_g = sum(g)
+    MOTA = (1.0 - (sum_fp + sum_missed + sum_mme) / sum_g) * 100.0
+    # MOTA = (1.0 - (sum(fp) + sum(missed) + sum(mme)) / sum(g)) * 100.0
 
     # recall = TP / (TP + FN) = # corrected boxes / # gt boxes
     recall = sum(tp) / sum(g) * 100.0
@@ -427,6 +432,6 @@ if __name__ == '__main__':
     # evaluate_seqs(seqs, args.track, args.gt)
 
     # ----- test running
-    evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_interval1.txt',
+    evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_fps6.txt',
                        res_path='F:/val_seq/val_1_results_fps6.txt')
     print('Done.')
