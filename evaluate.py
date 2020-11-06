@@ -432,6 +432,6 @@ if __name__ == '__main__':
     # evaluate_seqs(seqs, args.track, args.gt)
 
     # ----- test running
-    evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_fps6.txt',
-                       res_path='F:/val_seq/val_1_results_fps6.txt')
+    evaluate_mcmot_seq(gt_path='F:/val_seq/val_1_gt_mot16_fps12.txt',
+                       res_path='F:/val_seq/val_1_results_fps12.txt')
     print('Done.')
