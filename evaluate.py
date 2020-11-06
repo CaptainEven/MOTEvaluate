@@ -27,7 +27,7 @@ from utils.io import read_txt_to_struct, read_seqmaps, \
     extract_valid_gt_data, print_metrics
 from utils.bbox import bbox_overlap
 from utils.measurements import clear_mot_metrics, id_measures
-from utils.ParseDarkLabel2MOT16 import cls2id, id2cls
+from utils.convert import cls2id, id2cls
 
 
 def filter_DB(trackDB, gtDB, distractor_ids, iou_thres, min_vis):
