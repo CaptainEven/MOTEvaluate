@@ -6,7 +6,7 @@ An python reimplementation of toolkit in
 This file executes the evaluation.
 
 usage:
-python evaluate_tracking.py
+python evaluat.py
     --bm                       Whether to evaluate multiple files(benchmarks)
     --seqmap [filename]        List of sequences to be evaluated
     --track  [dirname]         Tracking results directory: default path --
