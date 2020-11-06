@@ -31,9 +31,10 @@ id2cls = {
 W, H = 1920, 1080
 
 
-def parse(darklabel_txt_path, interval=1, out_mot16_path=None):
+def convert_darklabel_2_mot16(darklabel_txt_path, interval=1, out_mot16_path=None):
     """
-    格式解析与转换
+    将darklabel标注格式frame # n [id, x1, y1, x2, y2, label]
+    转换成mot16格式
     """
     if not os.path.isfile(darklabel_txt_path):
         print('[Err]: invalid input file path.')
@@ -109,7 +110,7 @@ def parse(darklabel_txt_path, interval=1, out_mot16_path=None):
             print('Frame(start from 0) ', str(fr_id), 'sampled.')
 
 
-def parse_seqs(seq_root, interval=1):
+def convert_seqs(seq_root, interval=1):
     """
     """
     if not os.path.isdir(seq_root):
@@ -132,15 +133,16 @@ def parse_seqs(seq_root, interval=1):
         darklabel_txt_path = seq_dir + '/' + seq_name + '_gt.txt'
 
         # ---------- do pasing for a seq
-        parse(darklabel_txt_path, interval=interval, out_mot16_path=None)
+        convert_darklabel_2_mot16(darklabel_txt_path, interval=interval,
+                                  out_mot16_path=None)
         # ----------
 
 
 if __name__ == '__main__':
-    # parse(darklabel_txt_path='F:/seq_data/images/mcmot_seq_imgs_1/mcmot_seq_imgs_1_gt.txt')
-    # parse_seqs(seq_root='F:/seq_data/', interval=2)
-    parse(darklabel_txt_path='F:/val_seq/val_1_gt.txt',
-          interval=1,
-          out_mot16_path=None)
+    # convert_darklabel_2_mot16(darklabel_txt_path='F:/seq_data/images/mcmot_seq_imgs_1/mcmot_seq_imgs_1_gt.txt')
+    # convert_seqs(seq_root='F:/seq_data/', interval=2)
+    convert_darklabel_2_mot16(darklabel_txt_path='F:/val_seq/val_1_gt.txt',
+                              interval=1,
+                              out_mot16_path=None)
 
     print('Done.')
